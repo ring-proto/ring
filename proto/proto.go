@@ -132,6 +132,22 @@ func (n *Node) link(other *Node) {
 	n.peers[other.id] = &peer{inbox: other.inbox, pot: map[NodeID]float64{}}
 }
 
+// cutPeer and addPeer are RUNTIME adjacency edits (after Start), used by the sim fabric to sever and
+// heal a physical edge. They take n.mu because the node's Run goroutine reads peers under it; a
+// healed edge starts fresh (empty advertised potentials, not-yet-heard), so the link must re-acquire
+// like a new one.
+func (n *Node) cutPeer(id NodeID) {
+	n.mu.Lock()
+	delete(n.peers, id)
+	n.mu.Unlock()
+}
+
+func (n *Node) addPeer(other *Node) {
+	n.mu.Lock()
+	n.peers[other.id] = &peer{inbox: other.inbox, pot: map[NodeID]float64{}}
+	n.mu.Unlock()
+}
+
 // Run is the node's goroutine: receive a frame, or (on its own cadence) relax-and-emit —
 // forever, at its own pace, until stop is closed. No barrier couples it to any other node.
 func (n *Node) Run(stop <-chan struct{}) {

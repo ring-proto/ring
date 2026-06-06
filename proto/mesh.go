@@ -44,6 +44,21 @@ func (m *Mesh) Link(a, b NodeID) {
 	m.nodes[b].link(m.nodes[a])
 }
 
+// Cut removes the physical edge a—b at runtime (both routers stay powered): each stops hearing the
+// other, so after the adjacency-freshness window the fields reconverge around the cut — an edge
+// partition. Relink restores it. Together with Kill/Revive (node failure) they stage and heal both
+// kinds of partition.
+func (m *Mesh) Cut(a, b NodeID) {
+	m.nodes[a].cutPeer(b)
+	m.nodes[b].cutPeer(a)
+}
+
+// Relink restores a Cut edge; the two routers re-acquire each other and the fields reconverge.
+func (m *Mesh) Relink(a, b NodeID) {
+	m.nodes[a].addPeer(m.nodes[b])
+	m.nodes[b].addPeer(m.nodes[a])
+}
+
 func (m *Mesh) Node(id NodeID) *Node { return m.nodes[id] }
 
 // Start launches every node's goroutine. The nodes run freely from here — no barrier, no shared
@@ -76,6 +91,23 @@ func (m *Mesh) isDown(id NodeID) bool {
 	m.downMu.RLock()
 	defer m.downMu.RUnlock()
 	return m.down[id]
+}
+
+// Revive powers a Killed node back on: it restarts the node's goroutine, so it resumes emitting and
+// relaxing. Neighbours hear it afresh and the fields reconverge; its own vitality has aged toward
+// zero while dark, so it RE-LEARNS liveness from fresh evidence rather than resurrecting a stale
+// assertion. No-op if the node is not currently down.
+func (m *Mesh) Revive(id NodeID) {
+	m.downMu.Lock()
+	if !m.down[id] {
+		m.downMu.Unlock()
+		return
+	}
+	delete(m.down, id)
+	m.downMu.Unlock()
+	stop := make(chan struct{})
+	m.stops[id] = stop
+	go m.nodes[id].Run(stop)
 }
 
 // Stop halts every running node.
