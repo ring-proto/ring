@@ -10,6 +10,7 @@
 package proto
 
 import (
+	"math"
 	"slices"
 	"sync"
 	"time"
@@ -50,11 +51,14 @@ type Config struct {
 	Fresh float64       // link-layer freshness window, in Ticks (adjacency liveness only)
 	HopAge bool         // retardation mode: false = measured cross-clock transit (needs clock sync);
 	//                     true = fixed one-Tick per relay (clock-free, robust to skew)
+	Crowd float64 // congestion coupling c: a node's charge target is c·stress (0 = congestion off)
+	Glide float64 // glide rate r of the non-overshoot integrator reg() (only relevant when Crowd>0)
 }
 
 func DefaultConfig() Config {
 	return Config{D: 1, Kappa: 0.05, F0: 1, Floor: 1e-4, Alpha: 0.04, Phi: 0.5,
-		Tick: 4 * time.Millisecond, Fresh: 8, HopAge: true} // clock-free by default
+		Tick: 4 * time.Millisecond, Fresh: 8, HopAge: true, // clock-free by default
+		Crowd: 0, Glide: 1} // congestion off by default (Crowd=0 ⇒ charge stays 0)
 }
 
 // age applies continuous proper-time vitality decay V(t) = V0 / (1 + Alpha*ticks*V0), the
@@ -66,6 +70,15 @@ func (c Config) age(v, ticks float64) float64 {
 		return v
 	}
 	return v / (1 + c.Alpha*ticks*v)
+}
+
+// reg is the non-overshoot integrator of §5.8: reg(v,T,r) = T + (v−T)/(1 + r·|v−T|). It shrinks the
+// gap to the target T by a factor in (0,1) WITHOUT changing its sign, so the value glides toward T
+// monotonically and never overshoots (Lemma 5.8). Because it approaches T algebraically (not
+// exponentially), its Jacobian at the fixed point is exactly I — marginal — so the load↔charge loop
+// it closes has no linear ringing mode, unlike a proportional update v←v+r(T−v).
+func reg(v, target, r float64) float64 {
+	return target + (v-target)/(1+r*math.Abs(v-target))
 }
 
 type route struct {
@@ -93,6 +106,14 @@ type Node struct {
 	mu    sync.Mutex
 	peers map[NodeID]*peer
 	rib   map[NodeID]*route
+
+	// congestion screening charge (§5.7): stress is the offered load s_i (written by the data plane
+	// / harness — the load side of the loop), charge is µ_i, glided toward Crowd·s_i by the
+	// non-overshoot integrator reg() once per relax and added to the screened denominator
+	// G_i+κ+µ_i. Both are protocol-local scalars under mu; µ_i≥0 keeps q_i≥κ>0, so every routing
+	// guarantee holds unchanged at the larger charge (a loaded node simply has shorter reach).
+	stress float64
+	charge float64
 }
 
 // now is this node's LOCAL clock: real time plus its private skew. Durations measured against
@@ -166,6 +187,8 @@ func (n *Node) step() {
 	n.mu.Lock()
 	bidir := n.bidirPeers(now)
 	gsum := n.cfg.D * float64(len(bidir))
+	// glide the congestion charge toward its load target once per relax (§5.8); inert when Crowd=0.
+	n.charge = reg(n.charge, n.cfg.Crowd*n.stress, n.cfg.Glide)
 	deltas := []Entry{{Dest: n.id, Pot: n.cfg.F0, Vit: 1}} // self-pin: a live source asserts V=1
 	for _, d := range n.destSet(now) {
 		if d == n.id {
@@ -178,7 +201,7 @@ func (n *Node) step() {
 			fsum += n.cfg.D * p.pot[d]
 		}
 		if gsum > 0 {
-			r.pot = fsum / (gsum + n.cfg.Kappa) // screened balance f = (Σ g·f_nbr)/(Σ g + κ)
+			r.pot = fsum / (gsum + n.cfg.Kappa + n.charge) // f = (Σ g·f_nbr)/(Σ g + κ + µ), q=κ+µ
 		}
 		r.via = ""
 		var best float64
@@ -238,6 +261,23 @@ func (n *Node) Field(dst NodeID) (pot, vit float64, via NodeID, known bool) {
 	}
 	v := n.cfg.age(r.vit, ticksBetween(r.aged, now, n.cfg.Tick))
 	return r.pot, v, r.via, r.pot >= n.cfg.Floor && r.via != ""
+}
+
+// SetStress sets the node's offered load s_i — the load side of the congestion loop. The data plane
+// or harness writes it; the node's next relax glides its charge µ_i toward Crowd·s_i. Protocol code
+// never calls this: load is an external physical signal, not something the routing reads back.
+func (n *Node) SetStress(s float64) {
+	n.mu.Lock()
+	n.stress = s
+	n.mu.Unlock()
+}
+
+// Charge reports the node's current congestion screening charge µ_i (instrumentation for the
+// congestion figures).
+func (n *Node) Charge() float64 {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return n.charge
 }
 
 // --- helpers (all called under n.mu) ---
