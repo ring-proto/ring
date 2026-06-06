@@ -30,6 +30,7 @@ func main() {
 	emitTimeseries(*out)
 	emitGridField(filepath.Join(*out, "gridfield.dat"))
 	emitMultisource(*out)
+	emitReciprocal(*out)
 	fmt.Println("figgen: wrote tables to", *out)
 }
 
@@ -187,6 +188,40 @@ func emitGridField(path string) {
 		fmt.Fprintf(&c, "%.6f %.6f\n", val, float64(i+1)/float64(len(vals)))
 	}
 	write(filepath.Join(filepath.Dir(path), "vcdf.dat"), c.String())
+}
+
+// emitReciprocal is the EXACT reciprocal-eikonal: hop-distance T (here Manhattan to a centre source,
+// which is BFS shortest path on the 4-grid — the protocol's exact fixed point), U = 1+αT (the min-plus
+// Bellman metric that "counts to infinity"), and V = 1/U (its bounded reciprocal). The grid drives the
+// V light-cone heatmap; the slice drives the twin-axis U-vs-V reciprocal panel. [ideal] = exact.
+func emitReciprocal(dir string) {
+	cfg := proto.DefaultConfig()
+	const W, H = 41, 41
+	cx, cy := W/2, H/2
+	abs := func(a int) float64 {
+		if a < 0 {
+			return float64(-a)
+		}
+		return float64(a)
+	}
+	var grid strings.Builder
+	grid.WriteString("x y T U V\n")
+	for y := 0; y < H; y++ {
+		for x := 0; x < W; x++ {
+			t := abs(x-cx) + abs(y-cy)
+			u := 1 + cfg.Alpha*t
+			fmt.Fprintf(&grid, "%d %d %.1f %.4f %.5f\n", x, y, t, u, 1/u)
+		}
+	}
+	write(filepath.Join(dir, "recip_grid.dat"), grid.String())
+
+	var slice strings.Builder
+	slice.WriteString("delta U V phi\n")
+	for d := 0; d <= cx+cy; d++ {
+		u := 1 + cfg.Alpha*float64(d)
+		fmt.Fprintf(&slice, "%d %.4f %.5f %.3f\n", d, u, 1/u, cfg.Phi)
+	}
+	write(filepath.Join(dir, "recip_slice.dat"), slice.String())
 }
 
 func write(path, content string) {

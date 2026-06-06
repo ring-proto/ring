@@ -1,0 +1,37 @@
+% [IDEAL = EXACT] The reciprocal-eikonal. On a grid with a centre source, hop-distance T is the exact
+% min-plus shortest path (the protocol's fixed point). U=1+αT is the Bellman metric that counts to
+% infinity; V=1/U is its bounded reciprocal. Top: V over the grid, the iso-T diamonds are the discrete
+% light cones (proper-time balls), the red one the V=φ horizon. Bottom: the same along a ray — U
+% climbs without bound, V stays in [0,1] and fades through φ. Data: recip_grid.dat, recip_slice.dat.
+\providecommand{\figpath}{figures/}
+\begin{tikzpicture}
+\begin{axis}[
+  name=hm,
+  width=8cm, height=8cm, axis equal image, enlargelimits=false,
+  xmin=-0.5, xmax=40.5, ymin=-0.5, ymax=40.5, xtick=\empty, ytick=\empty,
+  colormap/viridis, colorbar, colorbar style={ylabel={$V=1/(1+\alpha T)$}},
+  point meta min=0.4, point meta max=1,
+]
+\addplot[matrix plot*, mesh/cols=41, point meta=explicit] table[x=x, y=y, meta=V] {\figpath recip_grid.dat};
+\draw[white, thick] (axis cs:10,20)--(axis cs:20,30)--(axis cs:30,20)--(axis cs:20,10)--cycle;
+\draw[white, thick] (axis cs:5,20)--(axis cs:20,35)--(axis cs:35,20)--(axis cs:20,5)--cycle;
+\draw[red!85!black, very thick] (axis cs:-5,20)--(axis cs:20,45)--(axis cs:45,20)--(axis cs:20,-5)--cycle;
+\node[white, font=\scriptsize\bfseries] at (axis cs:20,20) {src};
+\node[red!85!black, font=\scriptsize\bfseries, anchor=south west] at (axis cs:1,16) {$V{=}\varphi$};
+\end{axis}
+\begin{axis}[
+  at={(hm.south west)}, anchor=north west, yshift=-0.95cm,
+  width=8cm, height=4.6cm,
+  xlabel={hop distance $\delta$ (proper time)}, ylabel={value},
+  xmin=0, xmax=40, ymin=0, ymax=2.7,
+  legend pos=north west, legend cell align=left, legend style={font=\scriptsize},
+  grid=both, grid style={black!8}, tick align=outside, tick pos=left,
+]
+\addplot[blue!70!black, thick, mark=none] table[x=delta, y=U] {\figpath recip_slice.dat};
+\addlegendentry{$U=1+\alpha\delta$ (counts to $\infty$)}
+\addplot[red!75!black, thick, mark=none] table[x=delta, y=V] {\figpath recip_slice.dat};
+\addlegendentry{$V=1/U$ (bounded)}
+\addplot[black!55, dashed, mark=none] table[x=delta, y=phi] {\figpath recip_slice.dat};
+\addlegendentry{threshold $\varphi$}
+\end{axis}
+\end{tikzpicture}
