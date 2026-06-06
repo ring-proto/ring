@@ -115,46 +115,55 @@ func emitTimeseries(dir string) {
 }
 
 // emitGridField snapshots both fields over a 2-D grid toward a corner source after convergence,
-// together with the up-gradient hop as a unit flow vector. This one table drives three figures:
-// the f heatmap, the V heatmap, and the gradient/flow quiver. Columns: x y f V dx dy known.
+// together with the up-gradient hop as a unit flow vector AND the current it carries on that hop.
+// This one table drives the f heatmap, the V heatmap, and the flux-weighted flow quiver. Columns:
+// x y f V dx dy cur known.
 func emitGridField(path string) {
 	cfg := proto.DefaultConfig()
 	const W, H = 11, 11
 	m := proto.NewMesh(cfg)
 	proto.BuildGrid(m, W, H)
 	id := func(x, y int) proto.NodeID { return proto.NodeID(fmt.Sprintf("g%d-%d", x, y)) }
-	coord := map[proto.NodeID][2]int{}
-	for y := range H {
-		for x := range W {
-			coord[id(x, y)] = [2]int{x, y}
-		}
-	}
 	src := id(0, 0)
 	m.Start()
 	defer m.Stop()
 	waitUntil(8*time.Second, func() bool { _, _, r := m.Node(id(W-1, H-1)).Route(src); return r })
 	time.Sleep(1500 * time.Millisecond)
 
-	var b strings.Builder
-	b.WriteString("x y f V dx dy known\n")
+	// first pass: sample the field into grids
+	var f, v [H][W]float64
+	var dx, dy, known [H][W]int
 	for y := range H {
 		for x := range W {
-			if x == 0 && y == 0 { // source pin
-				fmt.Fprintf(&b, "%d %d %.6f %.6f %d %d %d\n", x, y, cfg.F0, 1.0, 0, 0, 1)
+			if x == 0 && y == 0 {
+				f[y][x], v[y][x], known[y][x] = cfg.F0, 1, 1
 				continue
 			}
-			f, v, via, known := m.Node(id(x, y)).Field(src)
-			dx, dy := 0, 0
+			fv, vv, via, k := m.Node(id(x, y)).Field(src)
+			f[y][x], v[y][x] = fv, vv
+			if k {
+				known[y][x] = 1
+			}
 			if via != "" {
-				if c, ok := coord[via]; ok {
-					dx, dy = c[0]-x, c[1]-y // unit step toward the dominant up-gradient hop
+				var vx, vy int
+				fmt.Sscanf(string(via), "g%d-%d", &vx, &vy)
+				dx[y][x], dy[y][x] = vx-x, vy-y
+			}
+		}
+	}
+	// second pass: current = D·(f_via − f_here), the up-gradient flux this node forwards toward src
+	var b strings.Builder
+	b.WriteString("x y f V dx dy cur known\n")
+	for y := range H {
+		for x := range W {
+			cur := 0.0
+			if dx[y][x] != 0 || dy[y][x] != 0 {
+				if vx, vy := x+dx[y][x], y+dy[y][x]; vx >= 0 && vx < W && vy >= 0 && vy < H {
+					cur = cfg.D * (f[vy][vx] - f[y][x])
 				}
 			}
-			k := 0
-			if known {
-				k = 1
-			}
-			fmt.Fprintf(&b, "%d %d %.6f %.6f %d %d %d\n", x, y, f, v, dx, dy, k)
+			fmt.Fprintf(&b, "%d %d %.6f %.6f %d %d %.6f %d\n",
+				x, y, f[y][x], v[y][x], dx[y][x], dy[y][x], cur, known[y][x])
 		}
 	}
 	write(path, b.String())
