@@ -96,7 +96,11 @@ func hudLine(a *App, name string) string {
 }
 
 func footerLine(a *App) string {
-	return dim(clip("[1]F [2]V [3]split [4]topo  [t]cycle-topo [g]tint  [hjkl/↑↓←→]move  [x]kill·revive [d]dst [z]reset  [space]pause [+/-]speed  [q]quit", a.cols))
+	hint := "[1]F [2]V [3]split [4]topo [5]cong  [t]topo [g]tint  [hjkl]move [x]kill [c]cut [d]dst [S]load [z]reset  [space]pause [+/-]speed [q]quit"
+	if a.cutArm != "" {
+		hint = "CUT ARMED at " + string(a.cutArm) + " — move to a neighbour and [c] to cut/relink, or [c] here to cancel"
+	}
+	return dim(clip(hint, a.cols))
 }
 
 // inspectorLine reads the selected node's routing state toward the current destination.

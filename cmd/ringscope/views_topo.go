@@ -10,8 +10,8 @@ import (
 
 // topoView is the universal graph lens: nodes at their layout positions, edges as dim Bresenham
 // lines, and each node drawn as an arrow pointing at its current up-gradient hop (via) — so the whole
-// routing flow toward the destination reads at a glance. Works for every topology, grid or not. 'g'
-// toggles whether nodes are tinted by f (potential) or V (vitality).
+// routing flow toward the destination reads at a glance. Works for every topology. 'g' toggles
+// whether nodes are tinted by f (potential) or V (vitality).
 type topoView struct{}
 
 func (topoView) Name() string { return "topology" }
@@ -29,9 +29,14 @@ func (topoView) Draw(b *strings.Builder, a *App) {
 	if a.tintV {
 		tint = "V"
 	}
-	b.WriteString(hudLine(a, "topology · "+a.topo.Name+" · tint "+tint))
-	b.WriteString("\r\n")
+	drawGraph(b, a, "topology · "+a.topo.Name+" · tint "+tint, a.nodeRender)
+}
 
+// drawGraph plots the topology into a cell canvas: edges first (severed edges marked), then each node
+// via nodeFn, with the selection brightened and the cut-verb's armed endpoint in amber.
+func drawGraph(b *strings.Builder, a *App, title string, nodeFn func(proto.NodeID) (rune, ansi.RGBColor)) {
+	b.WriteString(hudLine(a, title))
+	b.WriteString("\r\n")
 	pw := a.cols
 	if pw <= 0 {
 		pw = 100
@@ -47,6 +52,7 @@ func (topoView) Draw(b *strings.Builder, a *App) {
 	}
 
 	edge := ansi.RGBColor{R: 0x2c, G: 0x2c, B: 0x38}
+	severed := ansi.RGBColor{R: 0x55, G: 0x18, B: 0x18}
 	seen := map[[2]proto.NodeID]bool{}
 	for id, nbrs := range a.topo.Adj {
 		x0, y0 := cellOf(id)
@@ -57,14 +63,21 @@ func (topoView) Draw(b *strings.Builder, a *App) {
 			}
 			seen[k] = true
 			x1, y1 := cellOf(nb)
-			cv.line(x0, y0, x1, y1, '·', edge)
+			if a.cut[k] {
+				cv.line(x0, y0, x1, y1, '╳', severed)
+			} else {
+				cv.line(x0, y0, x1, y1, '·', edge)
+			}
 		}
 	}
 	for _, id := range a.topo.IDs {
 		x, y := cellOf(id)
-		r, col := a.nodeRender(id)
-		if id == a.sel {
-			col = ansi.RGBColor{R: 0xff, G: 0xff, B: 0xff} // selection: keep the glyph, brighten it
+		r, col := nodeFn(id)
+		switch id {
+		case a.cutArm:
+			col = ansi.RGBColor{R: 0xff, G: 0xd0, B: 0x33} // armed cut endpoint = amber
+		case a.sel:
+			col = ansi.RGBColor{R: 0xff, G: 0xff, B: 0xff} // selection = bright white
 		}
 		cv.put(x, y, r, col)
 	}

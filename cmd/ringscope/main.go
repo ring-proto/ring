@@ -30,12 +30,15 @@ type App struct {
 	cfg     proto.Config
 	m       *proto.Mesh
 	topo    Topo
-	dst     proto.NodeID
-	dead    map[proto.NodeID]bool
-	sel     proto.NodeID
-	tintV   bool
-	f0, phi float64
-	simTick time.Duration
+	dst      proto.NodeID
+	dead     map[proto.NodeID]bool
+	sel      proto.NodeID
+	tintV    bool
+	cutArm   proto.NodeID          // the cut verb's first endpoint, "" when disarmed
+	cut      map[[2]proto.NodeID]bool // edges currently severed (for display)
+	stressed map[proto.NodeID]bool // nodes the user has loaded (congestion view)
+	f0, phi  float64
+	simTick  time.Duration
 
 	paused        bool
 	frameInterval time.Duration
@@ -68,7 +71,7 @@ func main() {
 	a := &App{
 		params: p, cfg: cfg, f0: cfg.F0, phi: cfg.Phi, simTick: cfg.Tick,
 		frameInterval: 33 * time.Millisecond,
-		views:         []View{&fView{}, &vView{}, &splitView{}, &topoView{}},
+		views:         []View{&fView{}, &vView{}, &splitView{}, &topoView{}, &congView{}},
 	}
 	a.build()
 	defer a.stop()
@@ -86,6 +89,9 @@ func (a *App) build() {
 	a.m = m
 	a.dst = a.topo.Dst
 	a.dead = map[proto.NodeID]bool{}
+	a.cut = map[[2]proto.NodeID]bool{}
+	a.stressed = map[proto.NodeID]bool{}
+	a.cutArm = ""
 	a.sel = a.topo.Dst
 }
 
@@ -198,8 +204,10 @@ func (a *App) handleKey(k string) bool {
 		return true
 	case " ":
 		a.paused = !a.paused
-	case "1", "2", "3", "4":
+	case "1", "2", "3", "4", "5":
 		a.active = int(k[0] - '1')
+	case "c":
+		a.cutVerb()
 	case "\t":
 		a.active = (a.active + 1) % len(a.views)
 	case "\x1b[Z": // shift-tab
@@ -276,11 +284,66 @@ func (a *App) killToggle() {
 	}
 }
 
+// cutVerb is the two-step edge cut/relink: first press arms at the selection; a second press on an
+// adjacent node toggles that edge (Cut↔Relink); a press on a non-adjacent node re-arms there.
+func (a *App) cutVerb() {
+	switch {
+	case a.cutArm == "":
+		a.cutArm = a.sel
+	case a.cutArm == a.sel:
+		a.cutArm = "" // cancel
+	case a.adjacent(a.cutArm, a.sel):
+		k := edgeKey(a.cutArm, a.sel)
+		if a.cut[k] {
+			a.m.Relink(a.cutArm, a.sel)
+			delete(a.cut, k)
+		} else {
+			a.m.Cut(a.cutArm, a.sel)
+			a.cut[k] = true
+		}
+		a.cutArm = ""
+	default:
+		a.cutArm = a.sel // re-arm
+	}
+}
+
+func (a *App) adjacent(x, y proto.NodeID) bool {
+	for _, nb := range a.topo.Adj[x] {
+		if nb == y {
+			return true
+		}
+	}
+	return false
+}
+
+// stressToggle loads or unloads the selected node — the user-driven load side of the congestion loop.
+func (a *App) stressToggle() {
+	if a.sel == "" {
+		return
+	}
+	if a.stressed[a.sel] {
+		a.m.Node(a.sel).SetStress(0)
+		delete(a.stressed, a.sel)
+	} else {
+		a.m.Node(a.sel).SetStress(30)
+		a.stressed[a.sel] = true
+	}
+}
+
 func (a *App) reset() {
 	for id := range a.dead {
 		a.m.Revive(id)
 	}
+	for k := range a.cut {
+		a.m.Relink(k[0], k[1])
+	}
+	for id := range a.stressed {
+		a.m.Node(id).SetStress(0)
+	}
 	a.dead = map[proto.NodeID]bool{}
+	a.cut = map[[2]proto.NodeID]bool{}
+	a.stressed = map[proto.NodeID]bool{}
+	a.cutArm = ""
 	a.dst = a.topo.Dst
 }
 
