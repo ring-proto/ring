@@ -1,8 +1,11 @@
-% Vitality field V over an 11x11 grid toward the corner source. Data: gridfield.dat (figgen).
-% The far corner droops below phi (the vitality horizon, §8): field-known but not actionable.
+% Vitality field V over an 11x11 grid toward the corner source, with a marginal CDF of V below it.
+% The far corner droops below phi (the vitality horizon, §8): field-known but not actionable; on the
+% CDF, the φ cut separates the horizon tail (left) from the actionable fraction 1−CDF(φ) (right).
+% Data: gridfield.dat + vcdf.dat (figgen).
 \providecommand{\figpath}{figures/}
 \begin{tikzpicture}
 \begin{axis}[
+  name=hm,
   width=8.4cm, height=8.4cm,
   enlargelimits=false, axis equal image,
   xlabel={$x$}, ylabel={$y$},
@@ -14,5 +17,17 @@
 \addplot[matrix plot*, mesh/cols=11, point meta=explicit]
   table[x=x, y=y, meta=V] {\figpath gridfield.dat};
 \node[circle, draw=white, fill=white, inner sep=1.3pt, label={[white,font=\scriptsize]above:src}] at (axis cs:0,0) {};
+\end{axis}
+\begin{axis}[
+  at={(hm.south west)}, anchor=north west, yshift=-0.95cm,
+  width=8.4cm, height=3.4cm,
+  xlabel={vitality $V$ across the fabric}, ylabel={CDF},
+  xmin=0.4, xmax=1, ymin=0, ymax=1,
+  ytick={0,0.5,1}, grid=both, grid style={black!8},
+  tick align=outside, tick pos=left,
+]
+\addplot[draw=blue!70!black, thick, const plot] table[x=V, y=cdf] {\figpath vcdf.dat};
+\addplot[draw=red!75!black, dashed, very thick, mark=none] coordinates {(0.5,0) (0.5,1)};
+\node[anchor=south west, font=\scriptsize, red!65!black] at (axis cs:0.51,0.78) {$\varphi$: $\gets$horizon $\mid$ actionable$\to$};
 \end{axis}
 \end{tikzpicture}

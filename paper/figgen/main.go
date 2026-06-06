@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -167,6 +168,24 @@ func emitGridField(path string) {
 		}
 	}
 	write(path, b.String())
+
+	// marginal CDF of V over the grid — drives the gridV figure's distribution panel; 1−CDF(φ) reads
+	// off the fraction of the fabric still above the action threshold (actionable vs past the horizon).
+	var vals []float64
+	for y := range H {
+		for x := range W {
+			if known[y][x] == 1 {
+				vals = append(vals, v[y][x])
+			}
+		}
+	}
+	sort.Float64s(vals)
+	var c strings.Builder
+	c.WriteString("V cdf\n")
+	for i, val := range vals {
+		fmt.Fprintf(&c, "%.6f %.6f\n", val, float64(i+1)/float64(len(vals)))
+	}
+	write(filepath.Join(filepath.Dir(path), "vcdf.dat"), c.String())
 }
 
 func write(path, content string) {
