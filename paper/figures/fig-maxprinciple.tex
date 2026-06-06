@@ -1,0 +1,32 @@
+% [IDEAL] The maximum principle, by counterexample. LEFT: the field the operator actually produces on
+% a 5×5 grid toward a corner source — every interior node is strictly below its largest neighbour, so
+% the via-arrows (steepest ascent) all escape to the source: no trap. RIGHT: a hand-authored FORBIDDEN
+% configuration with a spurious interior maximum at the red node — every nearby arrow points INTO it
+% and none escapes, a black hole. The screened operator can never produce this (Thm 5.4/5.6); the
+% right panel is an impossibility, not a measurement. Data: maxp_legal.dat, maxp_forbidden.dat (figgen).
+\providecommand{\figpath}{figures/}
+\begin{tikzpicture}
+\begin{axis}[
+  name=L, width=6.4cm, height=6.4cm, axis equal image, enlargelimits=0.18, hide axis,
+  colormap/viridis, point meta min=0, point meta max=1,
+  title={\small legal: $f_i < \max_j f_j$ everywhere},
+]
+\addplot[point meta=explicit, quiver={u=\thisrow{dx}, v=\thisrow{dy}, scale arrows=0.34,
+  every arrow/.append style={-{Stealth[length=4pt]}, black!65}}] table[meta=f] {\figpath maxp_legal.dat};
+\addplot[scatter, only marks, scatter src=explicit, mark=*, mark size=3.4pt] table[meta=f] {\figpath maxp_legal.dat};
+\node[circle, draw=black, fill=white, inner sep=1.3pt, label={[font=\tiny]below:src}] at (axis cs:0,0) {};
+\end{axis}
+\begin{axis}[
+  name=R, at={(L.east)}, anchor=west, xshift=1.1cm,
+  width=6.4cm, height=6.4cm, axis equal image, enlargelimits=0.18, hide axis,
+  colormap/viridis, point meta min=0, point meta max=1,
+  title={\small forbidden: an interior maximum traps flow},
+]
+\addplot[point meta=explicit, quiver={u=\thisrow{dx}, v=\thisrow{dy}, scale arrows=0.34,
+  every arrow/.append style={-{Stealth[length=4pt]}, black!65}}] table[meta=f] {\figpath maxp_forbidden.dat};
+\addplot[scatter, only marks, scatter src=explicit, mark=*, mark size=3.4pt] table[meta=f] {\figpath maxp_forbidden.dat};
+\node[circle, draw=black, fill=white, inner sep=1.3pt, label={[font=\tiny]below:src}] at (axis cs:0,0) {};
+\node[circle, draw=red, very thick, minimum size=13pt] at (axis cs:2,2) {};
+\node[red, font=\tiny\bfseries, anchor=south] at (axis cs:2,2.55) {black hole};
+\end{axis}
+\end{tikzpicture}

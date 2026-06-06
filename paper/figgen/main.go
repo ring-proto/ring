@@ -31,6 +31,7 @@ func main() {
 	emitGridField(filepath.Join(*out, "gridfield.dat"))
 	emitMultisource(*out)
 	emitReciprocal(*out)
+	emitMaxPrinciple(*out)
 	fmt.Println("figgen: wrote tables to", *out)
 }
 

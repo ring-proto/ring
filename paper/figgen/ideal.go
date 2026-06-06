@@ -96,6 +96,69 @@ func emitMultisource(dir string) {
 	write(filepath.Join(dir, "ms_sink.dat"), sink.String())
 }
 
+// emitMaxPrinciple builds the two panels of the maximum-principle figure on a 5×5 grid toward a
+// corner source: the LEGAL field the operator actually produces (every interior node strictly below
+// its max neighbour, so the via-arrows all escape to the source), and a hand-authored FORBIDDEN field
+// with a spurious interior maximum — a node higher than all its neighbours, into which every nearby
+// arrow points and out of which none can: a black hole the operator can NEVER produce (Thm 5.4/5.6).
+func emitMaxPrinciple(dir string) {
+	const W, H = 5, 5
+	g := ideal.NewGraph(1, 0.08)
+	id := func(x, y int) string { return fmt.Sprintf("%d-%d", x, y) }
+	for y := 0; y < H; y++ {
+		for x := 0; x < W; x++ {
+			g.Add(id(x, y), float64(x), float64(y))
+		}
+	}
+	for y := 0; y < H; y++ {
+		for x := 0; x < W; x++ {
+			if x+1 < W {
+				g.Link(id(x, y), id(x+1, y))
+			}
+			if y+1 < H {
+				g.Link(id(x, y), id(x, y+1))
+			}
+		}
+	}
+	field := g.Solve(map[string]float64{id(0, 0): 1}, nil, 20000, 1e-12)
+	legal := func(x, y int) float64 { return field.Pot(id(x, y)) }
+	emitMaxPanel(dir, "maxp_legal.dat", W, H, legal, -1, -1)
+	// forbidden: the legal field with a spurious interior maximum bumped above everything at (2,2)
+	emitMaxPanel(dir, "maxp_forbidden.dat", W, H, func(x, y int) float64 {
+		if x == 2 && y == 2 {
+			return 1.5
+		}
+		return field.Pot(id(x, y))
+	}, 2, 2)
+}
+
+// emitMaxPanel writes a 5×5 panel: each node's potential plus its steepest-ascent via (the up-gradient
+// hop), marking the trap node. A node with dx=dy=0 that is not the source has no uphill exit.
+func emitMaxPanel(dir, name string, W, H int, fval func(x, y int) float64, trapX, trapY int) {
+	var b strings.Builder
+	b.WriteString("x y f dx dy trap\n")
+	for y := 0; y < H; y++ {
+		for x := 0; x < W; x++ {
+			f := fval(x, y)
+			best, bdx, bdy := f, 0, 0
+			for _, d := range [4][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+				nx, ny := x+d[0], y+d[1]
+				if nx >= 0 && nx < W && ny >= 0 && ny < H {
+					if nf := fval(nx, ny); nf > best {
+						best, bdx, bdy = nf, d[0], d[1]
+					}
+				}
+			}
+			trap := 0
+			if x == trapX && y == trapY {
+				trap = 1
+			}
+			fmt.Fprintf(&b, "%d %d %.5f %d %d %d\n", x, y, f, bdx, bdy, trap)
+		}
+	}
+	write(filepath.Join(dir, name), b.String())
+}
+
 func nearest(g *ideal.Graph, x, y float64) string {
 	best, bd := "", math.Inf(1)
 	for _, nd := range g.Nodes {
