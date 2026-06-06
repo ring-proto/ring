@@ -13,17 +13,17 @@ func halfBlock(top, bottom ansi.Color) string {
 	return ansi.NewStyle().ForegroundColor(top).BackgroundColor(bottom).Styled("▀")
 }
 
-// renderField draws a W×H scalar field as a half-block raster: text row r carries pixel rows 2r (fg)
-// and 2r+1 (bg). It coalesces the SGR sequence across horizontal runs of identical (fg,bg) and
-// resets once per row, so a dense grid costs a few hundred bytes per row rather than ~40 per cell.
-// A dangling odd final pixel row uses the panel background so its top pixel still shows. Rows are
-// CR/LF terminated for raw mode. colorOf maps a (value,status) pixel to its truecolor.
-func renderField(val [][]float64, st [][]PixStatus, colorOf func(float64, PixStatus) ansi.RGBColor) string {
-	h := len(val)
+// renderHalfBlock draws a W×H field as a half-block raster: text row r carries pixel rows 2r (fg) and
+// 2r+1 (bg). pix maps a pixel's (f, V, status) to its truecolor, so a view colours by f or by V from
+// the same sample. SGR is coalesced across horizontal runs of identical (fg,bg) and reset once per
+// row, so a dense grid costs a few hundred bytes per row rather than ~40 per cell. A dangling odd
+// final pixel row uses the panel background. Rows are CR/LF terminated for raw mode.
+func renderHalfBlock(fv, vv [][]float64, st [][]PixStatus, pix func(f, v float64, s PixStatus) ansi.RGBColor) string {
+	h := len(fv)
 	if h == 0 {
 		return ""
 	}
-	w := len(val[0])
+	w := len(fv[0])
 	var b strings.Builder
 	var lastFg, lastBg ansi.RGBColor
 	rows := (h + 1) / 2
@@ -32,10 +32,10 @@ func renderField(val [][]float64, st [][]PixStatus, colorOf func(float64, PixSta
 		bot := top + 1
 		have := false
 		for x := 0; x < w; x++ {
-			fg := colorOf(val[top][x], st[top][x])
+			fg := pix(fv[top][x], vv[top][x], st[top][x])
 			bg := panelBg
 			if bot < h {
-				bg = colorOf(val[bot][x], st[bot][x])
+				bg = pix(fv[bot][x], vv[bot][x], st[bot][x])
 			}
 			if !have || fg != lastFg || bg != lastBg {
 				b.WriteString(ansi.NewStyle().ForegroundColor(fg).BackgroundColor(bg).String())
