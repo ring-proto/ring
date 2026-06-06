@@ -57,6 +57,27 @@ func (g *Graph) Link(a, b string) {
 	g.adj[j] = append(g.adj[j], edge{to: i, g: g.D})
 }
 
+// Edges returns each undirected edge once, as an (a,b) id pair — for rendering the graph structure.
+func (g *Graph) Edges() [][2]string {
+	var out [][2]string
+	for i := range g.Nodes {
+		for _, e := range g.adj[i] {
+			if i < e.to {
+				out = append(out, [2]string{g.Nodes[i].ID, g.Nodes[e.to].ID})
+			}
+		}
+	}
+	return out
+}
+
+// Pos returns a node's 2-D position.
+func (g *Graph) Pos(id string) (x, y float64) {
+	if i, ok := g.idx[id]; ok {
+		return g.Nodes[i].X, g.Nodes[i].Y
+	}
+	return 0, 0
+}
+
 // Field is the exact solved potential over the graph, plus the screening charge used.
 type Field struct {
 	G  *Graph

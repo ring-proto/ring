@@ -29,6 +29,7 @@ func main() {
 	emitVDroop(filepath.Join(*out, "vdroop.dat"))
 	emitTimeseries(*out)
 	emitGridField(filepath.Join(*out, "gridfield.dat"))
+	emitMultisource(*out)
 	fmt.Println("figgen: wrote tables to", *out)
 }
 

@@ -1,0 +1,28 @@
+% [IDEAL] direct solve of (L_g+Q)f=0 on an irregular graph — the keystone field figure. Two pinned
+% sources form two attracting basins (a watershed between them); a high-µ congested sink bends the
+% flow around it. Nodes are coloured by potential f; the dark lines are steepest-ascent streamlines
+% (the current climbing toward the sources). This is what the OPERATOR computes, not what the
+% per-destination async protocol runs — caption as an idealized direct solve. Data: ms_*.dat (figgen).
+\providecommand{\figpath}{figures/}
+\begin{tikzpicture}
+\begin{axis}[
+  width=12cm, height=8.6cm,
+  axis equal image, hide axis, enlargelimits=0.06,
+  colormap/viridis, colorbar, colorbar style={ylabel={potential $f$}},
+  point meta min=0, point meta max=1,
+]
+\addplot[black!30, line width=0.2pt, mark=none] table {\figpath ms_edges.dat};
+\addplot[black!72, line width=0.5pt, opacity=0.8, mark=none] table {\figpath ms_stream.dat};
+\addplot[scatter, only marks, scatter src=explicit, mark=*, mark size=2pt]
+  table[meta=f] {\figpath ms_nodes.dat};
+\addplot[only marks, mark=o, mark size=3pt, red!85!black, line width=0.7pt]
+  table {\figpath ms_sink.dat};
+\addplot[only marks, mark=o, mark size=4pt, black, line width=1pt] table {\figpath ms_src.dat};
+\node[anchor=north, font=\scriptsize\bfseries, fill=white, fill opacity=0.7, text opacity=1, inner sep=1pt]
+  at (axis cs:0.2,0.43) {source};
+\node[anchor=north, font=\scriptsize\bfseries, fill=white, fill opacity=0.7, text opacity=1, inner sep=1pt]
+  at (axis cs:0.8,0.43) {source};
+\node[font=\scriptsize\bfseries, red!75!black, fill=white, fill opacity=0.7, text opacity=1, inner sep=1pt]
+  at (axis cs:0.5,0.55) {sink $\mu\!\uparrow$};
+\end{axis}
+\end{tikzpicture}
