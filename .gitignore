@@ -1,0 +1,79 @@
+# ============================================================
+# Go  (github/gitignore Go.gitignore)
+# ============================================================
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Code coverage profiles and other test artifacts
+*.out
+coverage.*
+*.coverprofile
+profile.cov
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# env file
+.env
+
+# ============================================================
+# LaTeX  (github/gitignore TeX.gitignore, core subset)
+# ============================================================
+## Core latex/pdflatex auxiliary files:
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.toc
+*.fmt
+*.fot
+
+## Intermediate documents:
+*.dvi
+*.xdv
+*-converted-to.*
+
+## Bibliography auxiliary files (bibtex/biblatex/biber):
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+
+## Build tool auxiliary files:
+*.fdb_latexmk
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+
+## TikZ/pgf externalization:
+*.dpth
+*.md5
+*.auxlock
+
+# ============================================================
+# Project
+# ============================================================
+# Compiled paper (regenerate with latexmk); generated .dat tables ARE tracked
+paper/ring.pdf
+# Figure-preview throwaways (paper/figures/_preview.tex)
+paper/figures/_preview.pdf
+paper/figures/_pv*.png
+
+# macOS
+.DS_Store

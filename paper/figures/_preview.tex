@@ -1,0 +1,17 @@
+% Throwaway harness to compile-test the figure fragments in isolation:
+%   cd paper/figures && pdflatex -interaction=nonstopmode _preview.tex
+\documentclass[11pt]{article}
+\usepackage[margin=0.8in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\providecommand{\figpath}{} % data files are in this directory
+\begin{document}
+\section*{fig-vdroop}\input{fig-vdroop}\par\vspace{1cm}
+\section*{fig-timeseries}\input{fig-timeseries}\par\vspace{1cm}
+\section*{fig-gridV}\input{fig-gridV}\par\vspace{1cm}
+\section*{fig-gridflow}\input{fig-gridflow}\par\vspace{1cm}
+\section*{fig-hist}\input{fig-hist}
+\end{document}

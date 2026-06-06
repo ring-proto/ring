@@ -1,0 +1,23 @@
+% Forwarding flow: the dominant up-gradient hop at each node, drawn as a unit vector and coloured
+% by routing potential f (brighter = nearer the source). Data: gridfield.dat (figgen). Every arrow
+% points down +f toward the source — a single attracting basin, no cycle, no black hole.
+\providecommand{\figpath}{figures/}
+\begin{tikzpicture}
+\begin{axis}[
+  width=8.4cm, height=8.4cm,
+  enlargelimits=true, axis equal image,
+  xlabel={$x$}, ylabel={$y$},
+  xtick={0,2,...,10}, ytick={0,2,...,10},
+  colormap/viridis, colorbar, colorbar style={ylabel={$f$}},
+  point meta min=0, point meta max=1,
+]
+\addplot[
+  point meta=explicit,
+  quiver={u=\thisrow{dx}, v=\thisrow{dy}, scale arrows=0.42,
+          every arrow/.append style={-{Stealth[length=4pt]}}},
+  quiver/colored=mapped color,
+] table[meta=f] {\figpath gridfield.dat};
+\node[circle, draw=black, fill=white, inner sep=1.3pt,
+      label={[font=\scriptsize]below right:src}] at (axis cs:0,0) {};
+\end{axis}
+\end{tikzpicture}

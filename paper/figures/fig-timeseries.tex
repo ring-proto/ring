@@ -1,0 +1,25 @@
+% Vitality lifecycle at a far observer: converge, source killed, graceful severance through phi.
+% Data: timeseries.dat (t_ms V phi), timeseries_kill.dat (vertical event segment). (figgen)
+\providecommand{\figpath}{figures/}
+\begin{tikzpicture}
+\begin{axis}[
+  width=\linewidth, height=6.2cm,
+  xlabel={time (ms)}, ylabel={vitality $V$ at observer},
+  xmin=0, xmax=4500, ymin=0, ymax=1.05,
+  legend pos=north east, legend cell align=left,
+  grid=both, grid style={black!8},
+  tick align=outside, tick pos=left,
+]
+% action threshold
+\addplot[draw=black!55, dashed, thick, mark=none] coordinates {(0,0.5) (4500,0.5)};
+\addlegendentry{action threshold $\varphi$}
+% source-kill event
+\addplot[draw=red!70!black, dotted, very thick, mark=none]
+  table[x=t, y=V] {\figpath timeseries_kill.dat};
+\addlegendentry{source killed}
+% measured vitality
+\addplot[draw=blue!70!black, thick, mark=none, smooth]
+  table[x=t, y=V] {\figpath timeseries.dat};
+\addlegendentry{$V$ (measured)}
+\end{axis}
+\end{tikzpicture}

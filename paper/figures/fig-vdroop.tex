@@ -1,0 +1,24 @@
+% Measured field droop along a line vs. hop distance. Data: vdroop.dat (figgen).
+\providecommand{\figpath}{figures/}
+\begin{tikzpicture}
+\begin{axis}[
+  width=\linewidth, height=6.2cm,
+  xlabel={hop distance $\delta$ from source},
+  ylabel={field value toward source},
+  xmin=0, xmax=8, ymin=0, ymax=1.05,
+  xtick={0,1,...,8},
+  legend pos=south west, legend cell align=left,
+  grid=both, grid style={black!8},
+  tick align=outside, tick pos=left,
+]
+\addplot[draw=black, dashed, thick, mark=none, samples at={0,...,8}]
+  table[x=delta, y=Videal] {\figpath vdroop.dat};
+\addlegendentry{$1/(1+\alpha\delta)$ (theory)}
+\addplot[mark=square*, thick, red!75!black, mark options={scale=0.9}]
+  table[x=delta, y=V] {\figpath vdroop.dat};
+\addlegendentry{vitality $V$ (measured)}
+\addplot[mark=*, thick, blue!70!black, mark options={scale=0.9}]
+  table[x=delta, y=f] {\figpath vdroop.dat};
+\addlegendentry{routing potential $f$ (measured)}
+\end{axis}
+\end{tikzpicture}
