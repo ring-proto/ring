@@ -2,6 +2,7 @@ package proto
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -21,7 +22,8 @@ type Mesh struct {
 	// adjacency-freshness window — there is no global death oracle. That separation is the whole
 	// point of Vitality: the gap between physical death (here, instant) and protocol detection
 	// (V<φ, propagation-delayed) is exactly the black-hole window the data plane measures.
-	down map[NodeID]bool
+	down   map[NodeID]bool
+	downMu sync.RWMutex // guards down: Kill writes it while concurrent Forward reads via isDown
 }
 
 func NewMesh(cfg Config) *Mesh {
@@ -62,13 +64,19 @@ func (m *Mesh) Kill(id NodeID) {
 		close(s)
 		delete(m.stops, id)
 	}
+	m.downMu.Lock()
 	m.down[id] = true // physical fabric records the router is powered off (data-plane only; see down)
+	m.downMu.Unlock()
 }
 
 // isDown reports the fabric's physical ground truth that a router is powered off. It exists for the
 // data plane (Forward) alone; the protocol must never consult it — death is perceived only via
 // Vitality. Unexported on purpose so no control-plane code can reach it.
-func (m *Mesh) isDown(id NodeID) bool { return m.down[id] }
+func (m *Mesh) isDown(id NodeID) bool {
+	m.downMu.RLock()
+	defer m.downMu.RUnlock()
+	return m.down[id]
+}
 
 // Stop halts every running node.
 func (m *Mesh) Stop() {
