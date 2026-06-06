@@ -196,3 +196,7 @@ func (m *Mesh) SetTick(d time.Duration) {
 		m.nodes[id].SetTick(d)
 	}
 }
+
+// SetKappa tunes a single node's baseline screening κ_i live — its personality knob for how sharply
+// it responds to its own carried load.
+func (m *Mesh) SetKappa(id NodeID, k float64) { m.nodes[id].SetKappa(k) }

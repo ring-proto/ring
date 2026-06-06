@@ -237,8 +237,26 @@ func (a *App) handleKey(k string) bool {
 		a.retune(0.75)
 	case "-", "_":
 		a.retune(1 / 0.75)
+	case "]":
+		a.tuneKappa(1.5) // stiffer: raise the selected node's κ (more load-tolerant)
+	case "[":
+		a.tuneKappa(1 / 1.5) // softer: lower κ (more load-sensitive)
 	}
 	return false
+}
+
+// tuneKappa scales the selected node's baseline screening κ_i live, clamped to a usable range.
+func (a *App) tuneKappa(f float64) {
+	if a.sel == "" {
+		return
+	}
+	k := a.m.Node(a.sel).Kappa() * f
+	if k < 1e-3 {
+		k = 1e-3
+	} else if k > 50 {
+		k = 50
+	}
+	a.m.SetKappa(a.sel, k)
 }
 
 func (a *App) selID() proto.NodeID { return a.sel }

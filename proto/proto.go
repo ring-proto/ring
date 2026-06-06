@@ -121,12 +121,17 @@ type Node struct {
 	via      []int         // dominant up-gradient hop (neighbour index, or -1) per destination
 	lastAged time.Time     // wall time the whole vit vector was last aged
 
-	// congestion screening charge (§5.7): stress is the offered load s_i (written by the data plane /
-	// harness — the load side of the loop), charge is µ_i, glided toward Crowd·s_i by the non-overshoot
-	// integrator reg() once per relax and added to the screened denominator G_i+κ+µ_i. µ_i≥0 keeps
-	// q_i≥κ>0, so every routing guarantee holds unchanged at the larger charge.
+	// congestion (§5.7) is endogenous: load is the node's OWN carried current — the sum over
+	// destinations of the up-gradient flux it forwards (best_d), measured live each relax. charge is
+	// µ_i, glided toward Crowd·(load+stress) by the non-overshoot integrator reg() and added to the
+	// screened denominator Σg+κ_i+µ_i. kappa is the per-node baseline screening κ_i (a tunable: by the
+	// convexity of 1/(Σg+κ+µ), low κ ⇒ sharply load-sensitive, high κ ⇒ load-tolerant). stress is an
+	// OPTIONAL externally-offered extra load for staging scenarios; the base load is self-measured.
+	// µ_i≥0 and κ_i>0 keep q_i≥κ_i>0, so every routing guarantee holds at the larger charge.
+	kappa  float64
 	stress float64
 	charge float64
+	load   float64
 
 	fbuf []float64 // reused neighbour-sum scratch (len n)
 	bbuf []*peer   // reused bidirectional-neighbour scratch (deg)
@@ -144,6 +149,7 @@ func NewNode(id NodeID, cfg Config) *Node {
 // mesh once, after all nodes exist and before any goroutine starts.
 func (n *Node) setup(idx, count int, ids []NodeID, index map[NodeID]int) {
 	n.idx, n.n, n.ids, n.index = idx, count, ids, index
+	n.kappa = n.cfg.Kappa // per-node baseline screening, defaulted from config
 	n.f = make([]float64, count)
 	n.vit = make([]float64, count)
 	n.via = make([]int, count)
@@ -236,7 +242,9 @@ func (n *Node) step() {
 	now := n.now()
 	n.mu.Lock()
 	n.ageAll(now)
-	n.charge = reg(n.charge, n.cfg.Crowd*n.stress, n.cfg.Glide) // §5.8 load→charge; inert when Crowd=0
+	// glide the congestion charge toward the node's OWN carried current (self-measured last relax)
+	// plus any externally-offered extra load; inert when Crowd=0. (§5.7–§5.8, self-driven loop)
+	n.charge = reg(n.charge, n.cfg.Crowd*(n.load+n.stress), n.cfg.Glide)
 	bidir := n.bidir(now)
 	gsum := 0.0
 	for _, p := range bidir {
@@ -245,8 +253,9 @@ func (n *Node) step() {
 
 	deltas := make([]Entry, 0, n.n)                                // the message payload (escapes)
 	deltas = append(deltas, Entry{Dest: n.idx, Pot: n.cfg.F0, Vit: 1}) // self-pin: a live source asserts V=1
+	carried := 0.0                                                     // self-measured current this relax
 	if gsum > 0 {
-		inv := 1.0 / (gsum + n.cfg.Kappa + n.charge)
+		inv := 1.0 / (gsum + n.kappa + n.charge)
 		fb := n.fbuf
 		for d := range fb {
 			fb[d] = 0
@@ -273,6 +282,7 @@ func (n *Node) step() {
 			n.via[d] = bvia
 			if fd >= n.cfg.Floor && bvia >= 0 {
 				deltas = append(deltas, Entry{Dest: d, Pot: fd, Vit: n.vit[d]})
+				carried += best // the up-gradient current this node forwards toward d
 			}
 		}
 	} else { // no bidirectional neighbours: the field collapses, nothing routable
@@ -280,6 +290,7 @@ func (n *Node) step() {
 			n.f[d], n.via[d] = 0, -1
 		}
 	}
+	n.load = carried // self-measured carried current, drives next relax's charge
 
 	msg := Message{From: n.idx, Hears: n.heardList(now), Delta: deltas, Emit: now}
 	n.tbuf = n.tbuf[:0]
@@ -334,9 +345,9 @@ func (n *Node) Field(dst NodeID) (pot, vit float64, via NodeID, known bool) {
 	return n.f[d], v, via, n.f[d] >= n.cfg.Floor && n.via[d] >= 0
 }
 
-// SetStress sets the node's offered load s_i — the load side of the congestion loop. The data plane or
-// harness writes it; the node's next relax glides its charge µ_i toward Crowd·s_i. Protocol code never
-// calls this: load is an external physical signal, not something the routing reads back.
+// SetStress sets an OPTIONAL externally-offered extra load on top of the node's own self-measured
+// carried current — for staging hotspots/scenarios. The base congestion is endogenous; this just adds
+// demand the routing never sees directly.
 func (n *Node) SetStress(s float64) {
 	n.mu.Lock()
 	n.stress = s
@@ -348,6 +359,33 @@ func (n *Node) Charge() float64 {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	return n.charge
+}
+
+// Load reports the node's self-measured carried current — the total up-gradient flux it forwards
+// across all destinations, the live quantity that drives its congestion charge.
+func (n *Node) Load() float64 {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return n.load
+}
+
+// SetKappa tunes this node's baseline screening κ_i (a per-node knob): by the convexity of
+// 1/(Σg+κ+µ), a low κ makes the node sharply load-sensitive and a high κ makes it load-tolerant.
+// Must stay > 0 so q_i = κ_i + µ_i > 0.
+func (n *Node) SetKappa(k float64) {
+	if k <= 0 {
+		return
+	}
+	n.mu.Lock()
+	n.kappa = k
+	n.mu.Unlock()
+}
+
+// Kappa reports the node's baseline screening κ_i.
+func (n *Node) Kappa() float64 {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return n.kappa
 }
 
 // tick returns the emission period / proper-time quantum under the lock, so the Run loop reads it

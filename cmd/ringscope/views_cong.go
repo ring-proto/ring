@@ -28,15 +28,17 @@ func (congView) Draw(b *strings.Builder, a *App) {
 	if a.cfg.Crowd <= 0 {
 		b.WriteString(hudLine(a, "congestion · charge µ"))
 		b.WriteString("\r\n\r\n")
-		b.WriteString(dim("  Congestion is off. Restart with  -crowd 1  to enable the load→charge loop,"))
+		b.WriteString(dim("  Congestion is off. Restart with  -crowd 1  to enable the load→charge loop."))
 		b.WriteString("\r\n")
-		b.WriteString(dim("  then press [S] on a node to load it and watch the field bend around it."))
+		b.WriteString(dim("  Then bottlenecks self-congest from their own carried current — no injection."))
+		b.WriteString("\r\n")
+		b.WriteString(dim("  [S] adds extra demand at a node; [ and ] tune its κ (load sensitivity)."))
 		b.WriteString("\r\n\r\n")
 		b.WriteString(footerLine(a))
 		return
 	}
 	mx := a.maxCharge() // normalize once per frame, not per node
-	title := fmt.Sprintf("congestion · charge µ (max %.2f) · [S] load node", mx)
+	title := fmt.Sprintf("congestion · live µ from carried current (max %.2f)", mx)
 	drawGraph(b, a, title, func(id proto.NodeID) (rune, ansi.RGBColor) {
 		if a.dead[id] {
 			return '✕', colDead

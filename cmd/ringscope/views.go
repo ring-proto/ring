@@ -96,7 +96,7 @@ func hudLine(a *App, name string) string {
 }
 
 func footerLine(a *App) string {
-	hint := "[1]F [2]V [3]split [4]topo [5]cong  [t]topo [g]tint  [hjkl]move [x]kill [c]cut [d]dst [S]load [z]reset  [space]pause [+/-]speed [q]quit"
+	hint := "[1]F [2]V [3]split [4]topo [5]cong  [t]topo [g]tint  [hjkl]move [x]kill [c]cut [d]dst [S]load [ ]κ [z]reset  [space]pause [+/-]speed [q]quit"
 	if a.cutArm != "" {
 		hint = "CUT ARMED at " + string(a.cutArm) + " — move to a neighbour and [c] to cut/relink, or [c] here to cancel"
 	}
@@ -114,14 +114,15 @@ func inspectorLine(a *App) string {
 	case a.dead[id]:
 		return dim(fmt.Sprintf("  sel %s   ✕ DEAD  ([x] or [r] to revive)", id))
 	}
-	pot, vit, via, known := a.m.Node(id).Field(a.dst)
-	_, _, routable := a.m.Node(id).Route(a.dst)
+	nd := a.m.Node(id)
+	pot, vit, via, _ := nd.Field(a.dst)
+	_, _, routable := nd.Route(a.dst)
 	v := string(via)
 	if v == "" {
 		v = "—"
 	}
-	return dim(clip(fmt.Sprintf("  sel %s   f=%.4f  V=%.3f  via=%s  known=%v  routable=%v",
-		id, pot, vit, v, known, routable), a.cols))
+	return dim(clip(fmt.Sprintf("  sel %s   f=%.4f  V=%.3f  via=%s   load=%.2f  µ=%.2f  κ=%.3f   routable=%v",
+		id, pot, vit, v, nd.Load(), nd.Charge(), nd.Kappa(), routable), a.cols))
 }
 
 // selOverlay marks the selected node's cell in a grid heatmap. The field begins at screen row 2 (HUD
