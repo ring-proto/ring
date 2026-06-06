@@ -58,6 +58,8 @@ type Config struct {
 	//                      true = fixed one-Tick per relay (clock-free, robust to skew)
 	Crowd float64 // congestion coupling c: a node's charge target is c·stress (0 = congestion off)
 	Glide float64 // glide rate r of the non-overshoot integrator reg() (only relevant when Crowd>0)
+	NoRetard bool // ablation (Thm 6.2): disable transit-aging so the offered vitality is adopted raw —
+	//              the un-retarded adopt-max, which locks a dead source's V at the spurious fixed point
 }
 
 func DefaultConfig() Config {
@@ -221,7 +223,10 @@ func (n *Node) ingest(m Message) {
 	p.heard = now
 	p.hears = slices.Contains(m.Hears, n.idx)
 	transit := 1.0 // clock-free: one relay = one Tick of proper time
-	if !n.cfg.HopAge {
+	switch {
+	case n.cfg.NoRetard:
+		transit = 0 // ablation (Thm 6.2): adopt the offered vitality un-aged → spurious resurrection
+	case !n.cfg.HopAge:
 		transit = ticksBetween(m.Emit, now, n.cfg.Tick) // measured cross-clock transit (needs sync)
 	}
 	for _, e := range m.Delta {
