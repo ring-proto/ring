@@ -1,12 +1,18 @@
-// Package proto is a clean-room, goroutine-per-node implementation of the converged RING
-// protocol. Each node is a goroutine that owns its routing state; neighbours communicate ONLY
-// through buffered inbox channels. Each node keeps its OWN local clock, with no synchronization
-// assumed — there is no global tick, no lock-step, and no protocol timers. A node maintains, per
-// destination, two transported scalar fields: a screened routing potential f (forwarded
-// up-gradient) and a retarded vitality V (liveness confidence, thresholded by the consumer).
-// Vitality is aged in clock-free proper time — one Tick per relay (HopAge), so a node never
-// compares timestamps across the unsynchronized clocks. This is the operational reference for
-// protocol.md and the honest async test of the theory in ring.md.
+// Package proto is a clean-room, goroutine-per-node implementation of the converged RING protocol.
+// Each node is a goroutine that owns its routing state; neighbours communicate ONLY through buffered
+// inbox channels. Each node keeps its OWN local clock, with no synchronization assumed — there is no
+// global tick, no lock-step, and no protocol timers. A node maintains, per destination, two
+// transported scalar fields: a screened routing potential f (forwarded up-gradient) and a retarded
+// vitality V (liveness confidence, thresholded by the consumer). Vitality is aged in clock-free
+// proper time — one Tick per relay (HopAge), so a node never compares timestamps across the
+// unsynchronized clocks.
+//
+// State is stored as DENSE slices indexed by a shared destination index (the node set), not maps: a
+// node's per-destination field is a contiguous []float64, so each relaxation is a tight,
+// cache-friendly vector sweep with no per-tick hashing or allocation. The destination universe is the
+// fixed node set, assigned an index at mesh build; pot=0 means "not yet learned" exactly as a missing
+// map entry did. This is the operational reference for the protocol spec and the honest async test of
+// the theory.
 package proto
 
 import (
@@ -18,39 +24,38 @@ import (
 
 type NodeID string
 
-// Entry is one advertised triple on the wire: a destination, the sender's routing potential
-// toward it, and the sender's vitality toward it.
+// Entry is one advertised triple on the wire: a destination (by shared index), the sender's routing
+// potential toward it, and the sender's vitality toward it.
 type Entry struct {
-	Dest NodeID
+	Dest int
 	Pot  float64
 	Vit  float64
 }
 
-// Message is one multicast emission to a node's neighbours. The base (clock-free) protocol needs
-// only From, Hears, and Delta. Emit is OPTIONAL: it is consumed only by the clock-synced
-// refinement (Config.HopAge=false), where a receiver with a synchronized clock may age by the
-// measured transit instead of a fixed Tick. The clock-free default ignores it.
+// Message is one multicast emission to a node's neighbours. The base (clock-free) protocol needs only
+// From, Hears, and Delta. Emit is OPTIONAL: it is consumed only by the clock-synced refinement
+// (Config.HopAge=false), where a receiver with a synchronized clock may age by the measured transit
+// instead of a fixed Tick. The clock-free default ignores it.
 type Message struct {
-	From  NodeID
-	Hears []NodeID // neighbours From currently hears — the 2-way adjacency echo
+	From  int   // sender's node index
+	Hears []int // neighbour indices From currently hears — the 2-way adjacency echo
 	Delta []Entry
-	Emit  time.Time // optional: emission timestamp, used only by the clock-synced refinement
+	Emit  time.Time
 }
 
-// Config is the protocol's parameter set. Times are wall-clock; Tick is the proper-time
-// quantum (and the nominal emission period), so aging rate Alpha and transit are both counted
-// in Ticks.
+// Config is the protocol's parameter set. Times are wall-clock; Tick is the proper-time quantum (and
+// the nominal emission period), so aging rate Alpha and transit are both counted in Ticks.
 type Config struct {
-	D     float64       // bulk conductance (diffusivity)
-	Kappa float64       // screening coefficient; reach lambda = sqrt(D/Kappa)
-	F0    float64       // source self-pin
-	Floor float64       // reachability floor on the field
-	Alpha float64       // vitality aging rate per Tick of proper time
-	Phi   float64       // vitality action threshold
-	Tick  time.Duration // proper-time quantum and nominal emission period
-	Fresh float64       // link-layer freshness window, in Ticks (adjacency liveness only)
-	HopAge bool         // retardation mode: false = measured cross-clock transit (needs clock sync);
-	//                     true = fixed one-Tick per relay (clock-free, robust to skew)
+	D      float64       // bulk conductance (diffusivity)
+	Kappa  float64       // screening coefficient; reach lambda = sqrt(D/Kappa)
+	F0     float64       // source self-pin
+	Floor  float64       // reachability floor on the field
+	Alpha  float64       // vitality aging rate per Tick of proper time
+	Phi    float64       // vitality action threshold
+	Tick   time.Duration // proper-time quantum and nominal emission period
+	Fresh  float64       // link-layer freshness window, in Ticks (adjacency liveness only)
+	HopAge bool          // retardation mode: false = measured cross-clock transit (needs clock sync);
+	//                      true = fixed one-Tick per relay (clock-free, robust to skew)
 	Crowd float64 // congestion coupling c: a node's charge target is c·stress (0 = congestion off)
 	Glide float64 // glide rate r of the non-overshoot integrator reg() (only relevant when Crowd>0)
 }
@@ -61,10 +66,11 @@ func DefaultConfig() Config {
 		Crowd: 0, Glide: 1} // congestion off by default (Crowd=0 ⇒ charge stays 0)
 }
 
-// age applies continuous proper-time vitality decay V(t) = V0 / (1 + Alpha*ticks*V0), the
-// exact flow of dV/dt = -Alpha*V^2, whose value at integer k from V0=1 is 1/(1+Alpha*k). It
-// accepts a fractional number of ticks, so real wall-clock elapsed maps directly to aging —
-// no synchronous unit-transit assumption.
+// age applies continuous proper-time vitality decay V(t) = V0 / (1 + Alpha*ticks*V0), the exact flow
+// of dV/dt = -Alpha*V^2, whose value at integer k from V0=1 is 1/(1+Alpha*k). It accepts a fractional
+// number of ticks, so real wall-clock elapsed maps directly to aging — no synchronous unit-transit
+// assumption. It is ADDITIVE in ticks: age(age(v,a),b)=age(v,a+b), which is why a single shared aging
+// clock per node is exact.
 func (c Config) age(v, ticks float64) float64 {
 	if v <= 0 || ticks <= 0 {
 		return v
@@ -81,77 +87,102 @@ func reg(v, target, r float64) float64 {
 	return target + (v-target)/(1+r*math.Abs(v-target))
 }
 
-type route struct {
-	pot, vit float64
-	via      NodeID
-	aged     time.Time // last wall time vit was aged toward 0
-}
-
+// peer is a neighbour's directed state, keyed in the node's peer map by the neighbour's index. Its
+// advertised potentials are a DENSE vector over the shared destination index — the array indexing
+// that replaced the old per-destination map lookups.
 type peer struct {
-	inbox chan Message       // the neighbour's inbox (we send here)
-	pot   map[NodeID]float64 // its last-advertised potential per destination
-	hears bool               // it echoes hearing us — the link is bidirectional
-	heard time.Time          // last wall time we received from it
+	idx   int
+	inbox chan Message
+	pot   []float64 // neighbour's last-advertised potential per destination index
+	hears bool      // it echoes hearing us — the link is bidirectional
+	heard time.Time // last wall time we received from it
 }
 
-// Node is one protocol instance. Its routing state (peers, rib) is mutated only by its own Run
-// goroutine, and guarded by mu solely so other goroutines (the harness / data plane) may read a
-// consistent snapshot. The inbox channel is the only structure neighbours touch.
+// Node is one protocol instance. Its routing state is mutated only by its own Run goroutine and
+// guarded by mu solely so other goroutines (the harness / data plane) may read a consistent snapshot.
+// The per-destination fields f/vit/via are dense slices over the shared index; ids/index translate
+// to/from NodeID only on the read path (Route/Field), never in the hot loop.
 type Node struct {
 	id    NodeID
+	idx   int // this node's destination index
 	cfg   Config
 	inbox chan Message
 	skew  time.Duration // this node's clock offset from real time (models unsynchronized clocks)
 
-	mu    sync.Mutex
-	peers map[NodeID]*peer
-	rib   map[NodeID]*route
+	ids   []NodeID       // shared index→id (immutable after setup)
+	index map[NodeID]int // shared id→index (immutable after setup)
+	n     int            // number of destinations (= node count)
 
-	// congestion screening charge (§5.7): stress is the offered load s_i (written by the data plane
-	// / harness — the load side of the loop), charge is µ_i, glided toward Crowd·s_i by the
-	// non-overshoot integrator reg() once per relax and added to the screened denominator
-	// G_i+κ+µ_i. Both are protocol-local scalars under mu; µ_i≥0 keeps q_i≥κ>0, so every routing
-	// guarantee holds unchanged at the larger charge (a loaded node simply has shorter reach).
+	mu       sync.Mutex
+	peers    map[int]*peer // by neighbour index — deg-sized, NOT the O(N²) hot path
+	f        []float64     // routing potential per destination index
+	vit      []float64     // vitality per destination index, as of lastAged
+	via      []int         // dominant up-gradient hop (neighbour index, or -1) per destination
+	lastAged time.Time     // wall time the whole vit vector was last aged
+
+	// congestion screening charge (§5.7): stress is the offered load s_i (written by the data plane /
+	// harness — the load side of the loop), charge is µ_i, glided toward Crowd·s_i by the non-overshoot
+	// integrator reg() once per relax and added to the screened denominator G_i+κ+µ_i. µ_i≥0 keeps
+	// q_i≥κ>0, so every routing guarantee holds unchanged at the larger charge.
 	stress float64
 	charge float64
+
+	fbuf []float64 // reused neighbour-sum scratch (len n)
+	bbuf []*peer   // reused bidirectional-neighbour scratch (deg)
+	tbuf []chan Message
 }
 
-// now is this node's LOCAL clock: real time plus its private skew. Durations measured against
-// the node's own earlier now() readings are skew-free (the offset cancels); only timestamps
-// compared across nodes carry the skew difference.
+// now is this node's LOCAL clock: real time plus its private skew.
 func (n *Node) now() time.Time { return time.Now().Add(n.skew) }
 
 func NewNode(id NodeID, cfg Config) *Node {
-	return &Node{id: id, cfg: cfg, inbox: make(chan Message, 1024),
-		peers: map[NodeID]*peer{}, rib: map[NodeID]*route{}}
+	return &Node{id: id, cfg: cfg, inbox: make(chan Message, 1024), peers: map[int]*peer{}}
 }
 
-// link wires a directed physical adjacency: this node may send to other's inbox. Called during
-// setup, before any goroutine starts.
+// setup binds the node to the shared destination index and allocates its dense state. Called by the
+// mesh once, after all nodes exist and before any goroutine starts.
+func (n *Node) setup(idx, count int, ids []NodeID, index map[NodeID]int) {
+	n.idx, n.n, n.ids, n.index = idx, count, ids, index
+	n.f = make([]float64, count)
+	n.vit = make([]float64, count)
+	n.via = make([]int, count)
+	for d := range n.via {
+		n.via[d] = -1
+	}
+	n.fbuf = make([]float64, count)
+	n.lastAged = n.now()
+	for _, p := range n.peers {
+		if p.pot == nil {
+			p.pot = make([]float64, count)
+		}
+	}
+}
+
+// link wires a directed physical adjacency by neighbour index. Called during setup, before any
+// goroutine starts; the dense pot vector is sized later in setup.
 func (n *Node) link(other *Node) {
-	n.peers[other.id] = &peer{inbox: other.inbox, pot: map[NodeID]float64{}}
+	n.peers[other.idx] = &peer{idx: other.idx, inbox: other.inbox}
 }
 
 // cutPeer and addPeer are RUNTIME adjacency edits (after Start), used by the sim fabric to sever and
-// heal a physical edge. They take n.mu because the node's Run goroutine reads peers under it; a
-// healed edge starts fresh (empty advertised potentials, not-yet-heard), so the link must re-acquire
-// like a new one.
-func (n *Node) cutPeer(id NodeID) {
+// heal a physical edge. They take n.mu because the node's Run goroutine reads peers under it; a healed
+// edge starts fresh (zeroed advertised potentials, not-yet-heard), so the link re-acquires like new.
+func (n *Node) cutPeer(other *Node) {
 	n.mu.Lock()
-	delete(n.peers, id)
+	delete(n.peers, other.idx)
 	n.mu.Unlock()
 }
 
 func (n *Node) addPeer(other *Node) {
 	n.mu.Lock()
-	n.peers[other.id] = &peer{inbox: other.inbox, pot: map[NodeID]float64{}}
+	n.peers[other.idx] = &peer{idx: other.idx, inbox: other.inbox, pot: make([]float64, n.n)}
 	n.mu.Unlock()
 }
 
-// Run is the node's goroutine: receive a frame, or (on its own cadence) relax-and-emit —
-// forever, at its own pace, until stop is closed. No barrier couples it to any other node.
+// Run is the node's goroutine: receive a frame, or (on its own cadence) relax-and-emit — forever, at
+// its own pace, until stop is closed. No barrier couples it to any other node.
 func (n *Node) Run(stop <-chan struct{}) {
-	emit := time.NewTimer(n.cfg.Tick)
+	emit := time.NewTimer(n.tick())
 	defer emit.Stop()
 	for {
 		select {
@@ -161,13 +192,13 @@ func (n *Node) Run(stop <-chan struct{}) {
 			n.ingest(m)
 		case <-emit.C:
 			n.step()
-			emit.Reset(n.cfg.Tick)
+			emit.Reset(n.tick()) // re-read each cycle so SetTick can retune the cadence live
 		}
 	}
 }
 
-// ingest records a neighbour's advertisement: the 2-way echo, its advertised potentials, and —
-// the retardation — its vitality aged by the message's transit time before the adopt-max.
+// ingest records a neighbour's advertisement: the 2-way echo, its advertised potentials (dense
+// writes), and — the retardation — its vitality aged by the message's transit before the adopt-max.
 func (n *Node) ingest(m Message) {
 	now := n.now()
 	n.mu.Lock()
@@ -176,65 +207,79 @@ func (n *Node) ingest(m Message) {
 	if p == nil {
 		return // not a wired neighbour
 	}
+	n.ageAll(now)
 	p.heard = now
-	p.hears = slices.Contains(m.Hears, n.id)
+	p.hears = slices.Contains(m.Hears, n.idx)
 	transit := 1.0 // clock-free: one relay = one Tick of proper time
 	if !n.cfg.HopAge {
 		transit = ticksBetween(m.Emit, now, n.cfg.Tick) // measured cross-clock transit (needs sync)
 	}
 	for _, e := range m.Delta {
-		if e.Dest == n.id {
-			continue // our own field is pinned locally, never learned
+		if e.Dest == n.idx || e.Dest < 0 || e.Dest >= n.n {
+			continue // our own field is pinned locally; ignore out-of-range
 		}
 		p.pot[e.Dest] = e.Pot
-		r := n.ribOf(e.Dest, now)
-		n.ageRoute(r, now)
-		if v := n.cfg.age(e.Vit, transit); v > r.vit { // retarded adopt-max
-			r.vit = v
+		if v := n.cfg.age(e.Vit, transit); v > n.vit[e.Dest] { // retarded adopt-max
+			n.vit[e.Dest] = v
 		}
 	}
 }
 
-// step is one relaxation-and-emit: age vitality, run one screened Jacobi sweep of the routing
-// potential per destination, recompute the dominant up-gradient hop, and multicast the self-pin
-// plus every routable destination to all neighbours.
+// step is one relaxation-and-emit: age vitality, glide the congestion charge, run one screened Jacobi
+// sweep of the routing potential over ALL destinations as a dense vector op, recompute the dominant
+// up-gradient hop, and multicast the self-pin plus every routable destination to all neighbours.
 func (n *Node) step() {
 	now := n.now()
 	n.mu.Lock()
-	bidir := n.bidirPeers(now)
+	n.ageAll(now)
+	n.charge = reg(n.charge, n.cfg.Crowd*n.stress, n.cfg.Glide) // §5.8 load→charge; inert when Crowd=0
+	bidir := n.bidir(now)
 	gsum := n.cfg.D * float64(len(bidir))
-	// glide the congestion charge toward its load target once per relax (§5.8); inert when Crowd=0.
-	n.charge = reg(n.charge, n.cfg.Crowd*n.stress, n.cfg.Glide)
-	deltas := []Entry{{Dest: n.id, Pot: n.cfg.F0, Vit: 1}} // self-pin: a live source asserts V=1
-	for _, d := range n.destSet(now) {
-		if d == n.id {
-			continue
+
+	deltas := make([]Entry, 0, n.n)                                // the message payload (escapes)
+	deltas = append(deltas, Entry{Dest: n.idx, Pot: n.cfg.F0, Vit: 1}) // self-pin: a live source asserts V=1
+	if gsum > 0 {
+		inv := 1.0 / (gsum + n.cfg.Kappa + n.charge)
+		fb := n.fbuf
+		for d := range fb {
+			fb[d] = 0
 		}
-		r := n.ribOf(d, now)
-		n.ageRoute(r, now)
-		var fsum float64
-		for _, p := range bidir {
-			fsum += n.cfg.D * p.pot[d]
-		}
-		if gsum > 0 {
-			r.pot = fsum / (gsum + n.cfg.Kappa + n.charge) // f = (Σ g·f_nbr)/(Σ g + κ + µ), q=κ+µ
-		}
-		r.via = ""
-		var best float64
-		for id, p := range bidir { // current split: dominant uphill (max-flux) neighbour
-			if w := n.cfg.D * (p.pot[d] - r.pot); w > best {
-				best, r.via = w, id
+		for _, p := range bidir { // neighbour-sum: fb = Σ D·pot_nbr  (tight contiguous adds)
+			pp := p.pot
+			for d := 0; d < n.n; d++ {
+				fb[d] += n.cfg.D * pp[d]
 			}
 		}
-		if r.pot >= n.cfg.Floor && r.via != "" {
-			deltas = append(deltas, Entry{Dest: d, Pot: r.pot, Vit: r.vit})
+		for d := 0; d < n.n; d++ { // screened balance + current split per destination
+			if d == n.idx {
+				n.f[d], n.via[d] = 0, -1
+				continue
+			}
+			fd := fb[d] * inv
+			n.f[d] = fd
+			best, bvia := 0.0, -1
+			for _, p := range bidir {
+				if w := n.cfg.D * (p.pot[d] - fd); w > best {
+					best, bvia = w, p.idx
+				}
+			}
+			n.via[d] = bvia
+			if fd >= n.cfg.Floor && bvia >= 0 {
+				deltas = append(deltas, Entry{Dest: d, Pot: fd, Vit: n.vit[d]})
+			}
+		}
+	} else { // no bidirectional neighbours: the field collapses, nothing routable
+		for d := 0; d < n.n; d++ {
+			n.f[d], n.via[d] = 0, -1
 		}
 	}
-	msg := Message{From: n.id, Hears: n.heardList(now), Delta: deltas, Emit: now}
-	targets := make([]chan Message, 0, len(n.peers))
+
+	msg := Message{From: n.idx, Hears: n.heardList(now), Delta: deltas, Emit: now}
+	n.tbuf = n.tbuf[:0]
 	for _, p := range n.peers {
-		targets = append(targets, p.inbox)
+		n.tbuf = append(n.tbuf, p.inbox)
 	}
+	targets := n.tbuf
 	n.mu.Unlock()
 
 	for _, ch := range targets { // non-blocking multicast: a full inbox drops (loss), never blocks
@@ -245,106 +290,113 @@ func (n *Node) step() {
 	}
 }
 
-// Route is the data-plane / inspection read: the dominant next hop toward dst and the action
-// decision (known AND vitality above threshold). The vitality is aged to now on the fly,
-// without storing, so the read does not mutate.
+// Route is the data-plane / inspection read: the dominant next hop toward dst and the action decision
+// (known AND vitality above threshold). Vitality is aged to now on the fly, without storing.
 func (n *Node) Route(dst NodeID) (via NodeID, vit float64, routable bool) {
 	now := n.now()
+	d, ok := n.index[dst]
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	r := n.rib[dst]
-	if r == nil {
+	if !ok || n.f == nil || d >= n.n {
 		return "", 0, false
 	}
-	v := n.cfg.age(r.vit, ticksBetween(r.aged, now, n.cfg.Tick))
-	known := r.pot >= n.cfg.Floor && r.via != ""
-	return r.via, v, known && v >= n.cfg.Phi
+	v := n.cfg.age(n.vit[d], ticksBetween(n.lastAged, now, n.cfg.Tick))
+	known := n.f[d] >= n.cfg.Floor && n.via[d] >= 0
+	if n.via[d] >= 0 {
+		via = n.ids[n.via[d]]
+	}
+	return via, v, known && v >= n.cfg.Phi
 }
 
-// Field is the instrumentation read: a non-mutating snapshot of both transported scalars toward
-// dst — the screened routing potential pot (f) and the retarded vitality vit (V, aged to now) —
-// plus the dominant up-gradient hop. known reports whether the field carries a usable route
-// (above the reachability floor with a next hop). It is the measurement surface the figure
-// generator samples to render the F/V fields and their gradients; unlike Route it does not apply
-// the φ action threshold, so it exposes the raw field value at every node, routable or not.
+// Field is the instrumentation read: a non-mutating snapshot of both transported scalars toward dst —
+// the routing potential pot (f) and the retarded vitality vit (V, aged to now) — plus the dominant
+// up-gradient hop. known reports a usable route (above the floor with a next hop). Unlike Route it does
+// not apply the φ threshold, so it exposes the raw field at every node.
 func (n *Node) Field(dst NodeID) (pot, vit float64, via NodeID, known bool) {
 	now := n.now()
+	d, ok := n.index[dst]
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	r := n.rib[dst]
-	if r == nil {
+	if !ok || n.f == nil || d >= n.n {
 		return 0, 0, "", false
 	}
-	v := n.cfg.age(r.vit, ticksBetween(r.aged, now, n.cfg.Tick))
-	return r.pot, v, r.via, r.pot >= n.cfg.Floor && r.via != ""
+	v := n.cfg.age(n.vit[d], ticksBetween(n.lastAged, now, n.cfg.Tick))
+	if n.via[d] >= 0 {
+		via = n.ids[n.via[d]]
+	}
+	return n.f[d], v, via, n.f[d] >= n.cfg.Floor && n.via[d] >= 0
 }
 
-// SetStress sets the node's offered load s_i — the load side of the congestion loop. The data plane
-// or harness writes it; the node's next relax glides its charge µ_i toward Crowd·s_i. Protocol code
-// never calls this: load is an external physical signal, not something the routing reads back.
+// SetStress sets the node's offered load s_i — the load side of the congestion loop. The data plane or
+// harness writes it; the node's next relax glides its charge µ_i toward Crowd·s_i. Protocol code never
+// calls this: load is an external physical signal, not something the routing reads back.
 func (n *Node) SetStress(s float64) {
 	n.mu.Lock()
 	n.stress = s
 	n.mu.Unlock()
 }
 
-// Charge reports the node's current congestion screening charge µ_i (instrumentation for the
-// congestion figures).
+// Charge reports the node's current congestion screening charge µ_i (instrumentation).
 func (n *Node) Charge() float64 {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	return n.charge
 }
 
+// tick returns the emission period / proper-time quantum under the lock, so the Run loop reads it
+// race-free while SetTick retunes it.
+func (n *Node) tick() time.Duration {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return n.cfg.Tick
+}
+
+// SetTick retunes this node's wall-clock cadence — emission period AND proper-time quantum together —
+// live. Slowing it cuts the node's CPU proportionally WITHOUT distorting per-hop behaviour, since
+// aging is counted in these same ticks. Takes effect on the next emit.
+func (n *Node) SetTick(d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	n.mu.Lock()
+	n.cfg.Tick = d
+	n.mu.Unlock()
+}
+
 // --- helpers (all called under n.mu) ---
 
-func (n *Node) ribOf(d NodeID, now time.Time) *route {
-	r := n.rib[d]
-	if r == nil {
-		r = &route{aged: now}
-		n.rib[d] = r
+// ageAll ages the whole vitality vector by the ticks elapsed since the last aging, then advances the
+// shared aging clock. Exact because age is additive in ticks (see Config.age).
+func (n *Node) ageAll(now time.Time) {
+	ticks := ticksBetween(n.lastAged, now, n.cfg.Tick)
+	if ticks <= 0 {
+		return
 	}
-	return r
+	for d := 0; d < n.n; d++ {
+		n.vit[d] = n.cfg.age(n.vit[d], ticks)
+	}
+	n.lastAged = now
 }
 
-func (n *Node) ageRoute(r *route, now time.Time) {
-	r.vit = n.cfg.age(r.vit, ticksBetween(r.aged, now, n.cfg.Tick))
-	r.aged = now
-}
-
-func (n *Node) bidirPeers(now time.Time) map[NodeID]*peer {
-	out := map[NodeID]*peer{}
-	for id, p := range n.peers {
+// bidir collects the bidirectional, fresh neighbours into the reused scratch buffer.
+func (n *Node) bidir(now time.Time) []*peer {
+	out := n.bbuf[:0]
+	for _, p := range n.peers {
 		if p.hears && ticksBetween(p.heard, now, n.cfg.Tick) < n.cfg.Fresh {
-			out[id] = p
+			out = append(out, p)
 		}
 	}
+	n.bbuf = out
 	return out
 }
 
-func (n *Node) destSet(now time.Time) []NodeID {
-	set := map[NodeID]bool{}
-	for _, p := range n.bidirPeers(now) {
-		for d := range p.pot {
-			set[d] = true
-		}
-	}
-	for d := range n.rib {
-		set[d] = true
-	}
-	out := make([]NodeID, 0, len(set))
-	for d := range set {
-		out = append(out, d)
-	}
-	slices.Sort(out)
-	return out
-}
-
-func (n *Node) heardList(now time.Time) []NodeID {
-	var out []NodeID
-	for id, p := range n.peers {
+// heardList is the freshly-allocated list of neighbour indices we currently hear (it escapes into the
+// emitted message, so it cannot reuse a buffer).
+func (n *Node) heardList(now time.Time) []int {
+	var out []int
+	for idx, p := range n.peers {
 		if ticksBetween(p.heard, now, n.cfg.Tick) < n.cfg.Fresh {
-			out = append(out, id)
+			out = append(out, idx)
 		}
 	}
 	return out

@@ -22,17 +22,21 @@ type Mesh struct {
 	// adjacency-freshness window — there is no global death oracle. That separation is the whole
 	// point of Vitality: the gap between physical death (here, instant) and protocol detection
 	// (V<φ, propagation-delayed) is exactly the black-hole window the data plane measures.
+	index map[NodeID]int // shared destination index (id→position), assigned at Add
+
 	down   map[NodeID]bool
 	downMu sync.RWMutex // guards down: Kill writes it while concurrent Forward reads via isDown
 }
 
 func NewMesh(cfg Config) *Mesh {
 	return &Mesh{cfg: cfg, nodes: map[NodeID]*Node{}, stops: map[NodeID]chan struct{}{},
-		down: map[NodeID]bool{}}
+		index: map[NodeID]int{}, down: map[NodeID]bool{}}
 }
 
 func (m *Mesh) Add(id NodeID) *Node {
 	n := NewNode(id, m.cfg)
+	n.idx = len(m.order)
+	m.index[id] = n.idx
 	m.nodes[id] = n
 	m.order = append(m.order, id)
 	return n
@@ -49,8 +53,8 @@ func (m *Mesh) Link(a, b NodeID) {
 // partition. Relink restores it. Together with Kill/Revive (node failure) they stage and heal both
 // kinds of partition.
 func (m *Mesh) Cut(a, b NodeID) {
-	m.nodes[a].cutPeer(b)
-	m.nodes[b].cutPeer(a)
+	m.nodes[a].cutPeer(m.nodes[b])
+	m.nodes[b].cutPeer(m.nodes[a])
 }
 
 // Relink restores a Cut edge; the two routers re-acquire each other and the fields reconverge.
@@ -61,9 +65,13 @@ func (m *Mesh) Relink(a, b NodeID) {
 
 func (m *Mesh) Node(id NodeID) *Node { return m.nodes[id] }
 
-// Start launches every node's goroutine. The nodes run freely from here — no barrier, no shared
-// tick.
+// Start binds every node to the shared destination index (allocating its dense state) and then
+// launches its goroutine. The nodes run freely from here — no barrier, no shared tick.
 func (m *Mesh) Start() {
+	n := len(m.order)
+	for i, id := range m.order {
+		m.nodes[id].setup(i, n, m.order, m.index)
+	}
 	for _, id := range m.order {
 		stop := make(chan struct{})
 		m.stops[id] = stop
@@ -157,3 +165,11 @@ func BuildGrid(m *Mesh, w, h int) []NodeID {
 // SetSkew gives a node a private clock offset (must be called before Start) to model
 // unsynchronized clocks.
 func (m *Mesh) SetSkew(id NodeID, d time.Duration) { m.nodes[id].skew = d }
+
+// SetTick retunes every node's wall-clock cadence at once — the master throttle on simulation speed
+// and CPU (the protocol's work rate is O(N²·deg / tick)). Safe to call on a running mesh.
+func (m *Mesh) SetTick(d time.Duration) {
+	for _, id := range m.order {
+		m.nodes[id].SetTick(d)
+	}
+}
