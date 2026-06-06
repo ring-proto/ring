@@ -14,9 +14,10 @@ type Topo struct {
 	Name string
 	Kind string
 	IDs  []proto.NodeID
-	Pos  map[proto.NodeID][2]float64 // normalized [0,1]^2
+	Pos  map[proto.NodeID][2]float64        // normalized [0,1]^2
 	Adj  map[proto.NodeID][]proto.NodeID
-	Grid [][]proto.NodeID // non-nil only for "grid"
+	Wt   map[[2]proto.NodeID]float64        // per-edge conductance (bandwidth), for rendering
+	Grid [][]proto.NodeID                   // non-nil only for "grid"
 	Dst  proto.NodeID
 }
 
@@ -30,7 +31,8 @@ type topoParams struct {
 }
 
 func newTopo(name, kind string) Topo {
-	return Topo{Name: name, Kind: kind, Pos: map[proto.NodeID][2]float64{}, Adj: map[proto.NodeID][]proto.NodeID{}}
+	return Topo{Name: name, Kind: kind, Pos: map[proto.NodeID][2]float64{},
+		Adj: map[proto.NodeID][]proto.NodeID{}, Wt: map[[2]proto.NodeID]float64{}}
 }
 
 func (t *Topo) add(m *proto.Mesh, id proto.NodeID, x, y float64) {
@@ -39,10 +41,18 @@ func (t *Topo) add(m *proto.Mesh, id proto.NodeID, x, y float64) {
 	t.Pos[id] = [2]float64{x, y}
 }
 
-func (t *Topo) link(m *proto.Mesh, a, b proto.NodeID) {
-	m.Link(a, b)
+func (t *Topo) link(m *proto.Mesh, a, b proto.NodeID) { t.linkW(m, a, b, 1) }
+
+// linkW wires an edge with conductance g (bandwidth) and records it for rendering.
+func (t *Topo) linkW(m *proto.Mesh, a, b proto.NodeID, g float64) {
+	if g == 1 {
+		m.Link(a, b)
+	} else {
+		m.LinkW(a, b, g)
+	}
 	t.Adj[a] = append(t.Adj[a], b)
 	t.Adj[b] = append(t.Adj[b], a)
+	t.Wt[edgeKey(a, b)] = g
 }
 
 // buildTopo dispatches to the requested topology builder, adding nodes and links to m.
@@ -140,7 +150,7 @@ func buildClos(m *proto.Mesh, spines, leaves, hpl int) Topo {
 		lx := float64(j+1) / float64(leaves+1)
 		t.add(m, lf, lx, 0.5)
 		for i := 0; i < spines; i++ {
-			t.link(m, lf, sp[i])
+			t.linkW(m, lf, sp[i], 4) // fat spine↔leaf fabric trunks
 		}
 		for k := 0; k < hpl; k++ {
 			hid := proto.NodeID(fmt.Sprintf("h%d-%d", j, k))
@@ -173,12 +183,12 @@ func buildInternet(m *proto.Mesh, ases, perAS int) Topo {
 			rs[i] = proto.NodeID(fmt.Sprintf("a%dr%d", a, i))
 			t.add(m, rs[i], cx+0.10*math.Cos(th), cy+0.10*math.Sin(th))
 		}
-		for i := 0; i < perAS; i++ { // intra-AS ring
-			t.link(m, rs[i], rs[(i+1)%perAS])
+		for i := 0; i < perAS; i++ { // intra-AS ring (fast local)
+			t.linkW(m, rs[i], rs[(i+1)%perAS], 3)
 		}
 		border[a] = rs[0]
 	}
-	for a := 0; a < ases; a++ { // inter-AS peering ring of border routers
+	for a := 0; a < ases; a++ { // inter-AS peering (the WAN bottleneck)
 		t.link(m, border[a], border[(a+1)%ases])
 	}
 	t.Dst = border[ases/2]

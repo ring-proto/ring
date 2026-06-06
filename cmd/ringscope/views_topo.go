@@ -51,8 +51,13 @@ func drawGraph(b *strings.Builder, a *App, title string, nodeFn func(proto.NodeI
 		return int(p[0]*float64(pw-1) + 0.5), int(p[1]*float64(ph-1) + 0.5)
 	}
 
-	edge := ansi.RGBColor{R: 0x2c, G: 0x2c, B: 0x38}
-	severed := ansi.RGBColor{R: 0x55, G: 0x18, B: 0x18}
+	severed := ansi.RGBColor{R: 0x66, G: 0x1a, B: 0x1a}
+	maxW := 1.0
+	for _, w := range a.topo.Wt {
+		if w > maxW {
+			maxW = w
+		}
+	}
 	seen := map[[2]proto.NodeID]bool{}
 	for id, nbrs := range a.topo.Adj {
 		x0, y0 := cellOf(id)
@@ -65,9 +70,13 @@ func drawGraph(b *strings.Builder, a *App, title string, nodeFn func(proto.NodeI
 			x1, y1 := cellOf(nb)
 			if a.cut[k] {
 				cv.line(x0, y0, x1, y1, '╳', severed)
-			} else {
-				cv.line(x0, y0, x1, y1, '·', edge)
+				continue
 			}
+			w := a.topo.Wt[k]
+			if w == 0 {
+				w = 1
+			}
+			cv.line(x0, y0, x1, y1, edgeGlyph(w, maxW), edgeColor(w, maxW)) // brightness ∝ bandwidth
 		}
 	}
 	for _, id := range a.topo.IDs {
@@ -122,4 +131,22 @@ func edgeKey(a, b proto.NodeID) [2]proto.NodeID {
 		return [2]proto.NodeID{a, b}
 	}
 	return [2]proto.NodeID{b, a}
+}
+
+// edgeColor brightens an edge by its conductance: thin links dim grey, fat links bright blue.
+func edgeColor(w, maxW float64) ansi.RGBColor {
+	t := 0.0
+	if maxW > 0 {
+		t = w / maxW
+	}
+	lerp := func(lo, hi float64) uint8 { return uint8(lo + t*(hi-lo)) }
+	return ansi.RGBColor{R: lerp(0x44, 0x6a), G: lerp(0x44, 0x9a), B: lerp(0x52, 0xe0)}
+}
+
+// edgeGlyph thickens the fattest links a touch.
+func edgeGlyph(w, maxW float64) rune {
+	if maxW > 0 && w/maxW >= 0.66 {
+		return '•'
+	}
+	return '·'
 }
