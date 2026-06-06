@@ -93,6 +93,7 @@ func reg(v, target, r float64) float64 {
 type peer struct {
 	idx   int
 	inbox chan Message
+	g     float64   // link conductance (bandwidth) toward this neighbour; weights it in the balance
 	pot   []float64 // neighbour's last-advertised potential per destination index
 	hears bool      // it echoes hearing us — the link is bidirectional
 	heard time.Time // last wall time we received from it
@@ -158,10 +159,13 @@ func (n *Node) setup(idx, count int, ids []NodeID, index map[NodeID]int) {
 	}
 }
 
-// link wires a directed physical adjacency by neighbour index. Called during setup, before any
-// goroutine starts; the dense pot vector is sized later in setup.
-func (n *Node) link(other *Node) {
-	n.peers[other.idx] = &peer{idx: other.idx, inbox: other.inbox}
+// link wires a directed physical adjacency by neighbour index, at the default link conductance.
+// Called during setup, before any goroutine starts; the dense pot vector is sized later in setup.
+func (n *Node) link(other *Node) { n.linkW(other, n.cfg.D) }
+
+// linkW wires a directed adjacency with an explicit link conductance (bandwidth).
+func (n *Node) linkW(other *Node, g float64) {
+	n.peers[other.idx] = &peer{idx: other.idx, inbox: other.inbox, g: g}
 }
 
 // cutPeer and addPeer are RUNTIME adjacency edits (after Start), used by the sim fabric to sever and
@@ -173,9 +177,9 @@ func (n *Node) cutPeer(other *Node) {
 	n.mu.Unlock()
 }
 
-func (n *Node) addPeer(other *Node) {
+func (n *Node) addPeer(other *Node, g float64) {
 	n.mu.Lock()
-	n.peers[other.idx] = &peer{idx: other.idx, inbox: other.inbox, pot: make([]float64, n.n)}
+	n.peers[other.idx] = &peer{idx: other.idx, inbox: other.inbox, g: g, pot: make([]float64, n.n)}
 	n.mu.Unlock()
 }
 
@@ -234,7 +238,10 @@ func (n *Node) step() {
 	n.ageAll(now)
 	n.charge = reg(n.charge, n.cfg.Crowd*n.stress, n.cfg.Glide) // §5.8 load→charge; inert when Crowd=0
 	bidir := n.bidir(now)
-	gsum := n.cfg.D * float64(len(bidir))
+	gsum := 0.0
+	for _, p := range bidir {
+		gsum += p.g // total link conductance (bandwidth) into this node
+	}
 
 	deltas := make([]Entry, 0, n.n)                                // the message payload (escapes)
 	deltas = append(deltas, Entry{Dest: n.idx, Pot: n.cfg.F0, Vit: 1}) // self-pin: a live source asserts V=1
@@ -244,10 +251,10 @@ func (n *Node) step() {
 		for d := range fb {
 			fb[d] = 0
 		}
-		for _, p := range bidir { // neighbour-sum: fb = Σ D·pot_nbr  (tight contiguous adds)
-			pp := p.pot
+		for _, p := range bidir { // neighbour-sum: fb = Σ g_ij·pot_nbr  (bandwidth-weighted)
+			g, pp := p.g, p.pot
 			for d := 0; d < n.n; d++ {
-				fb[d] += n.cfg.D * pp[d]
+				fb[d] += g * pp[d]
 			}
 		}
 		for d := 0; d < n.n; d++ { // screened balance + current split per destination
@@ -258,8 +265,8 @@ func (n *Node) step() {
 			fd := fb[d] * inv
 			n.f[d] = fd
 			best, bvia := 0.0, -1
-			for _, p := range bidir {
-				if w := n.cfg.D * (p.pot[d] - fd); w > best {
+			for _, p := range bidir { // current split: dominant max-flux (bandwidth × gradient) hop
+				if w := p.g * (p.pot[d] - fd); w > best {
 					best, bvia = w, p.idx
 				}
 			}

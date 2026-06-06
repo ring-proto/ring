@@ -22,7 +22,8 @@ type Mesh struct {
 	// adjacency-freshness window — there is no global death oracle. That separation is the whole
 	// point of Vitality: the gap between physical death (here, instant) and protocol detection
 	// (V<φ, propagation-delayed) is exactly the black-hole window the data plane measures.
-	index map[NodeID]int // shared destination index (id→position), assigned at Add
+	index  map[NodeID]int          // shared destination index (id→position), assigned at Add
+	weight map[[2]NodeID]float64   // explicit per-edge conductance, so Relink restores bandwidth
 
 	down   map[NodeID]bool
 	downMu sync.RWMutex // guards down: Kill writes it while concurrent Forward reads via isDown
@@ -30,7 +31,7 @@ type Mesh struct {
 
 func NewMesh(cfg Config) *Mesh {
 	return &Mesh{cfg: cfg, nodes: map[NodeID]*Node{}, stops: map[NodeID]chan struct{}{},
-		index: map[NodeID]int{}, down: map[NodeID]bool{}}
+		index: map[NodeID]int{}, weight: map[[2]NodeID]float64{}, down: map[NodeID]bool{}}
 }
 
 func (m *Mesh) Add(id NodeID) *Node {
@@ -42,10 +43,20 @@ func (m *Mesh) Add(id NodeID) *Node {
 	return n
 }
 
-// Link wires a bidirectional physical adjacency between a and b.
+// Link wires a bidirectional physical adjacency between a and b at the default conductance.
 func (m *Mesh) Link(a, b NodeID) {
 	m.nodes[a].link(m.nodes[b])
 	m.nodes[b].link(m.nodes[a])
+}
+
+// LinkW wires a bidirectional adjacency with an explicit link conductance g (bandwidth): higher g
+// weights that neighbour more in the screened balance and carries more current, so the routing field
+// prefers fatter pipes. Affects the routing field f only; vitality is bandwidth-blind. The weight is
+// remembered so a Cut/Relink restores it.
+func (m *Mesh) LinkW(a, b NodeID, g float64) {
+	m.nodes[a].linkW(m.nodes[b], g)
+	m.nodes[b].linkW(m.nodes[a], g)
+	m.weight[ekey(a, b)] = g
 }
 
 // Cut removes the physical edge a—b at runtime (both routers stay powered): each stops hearing the
@@ -57,10 +68,22 @@ func (m *Mesh) Cut(a, b NodeID) {
 	m.nodes[b].cutPeer(m.nodes[a])
 }
 
-// Relink restores a Cut edge; the two routers re-acquire each other and the fields reconverge.
+// Relink restores a Cut edge at its original conductance; the routers re-acquire and reconverge.
 func (m *Mesh) Relink(a, b NodeID) {
-	m.nodes[a].addPeer(m.nodes[b])
-	m.nodes[b].addPeer(m.nodes[a])
+	g := m.cfg.D
+	if w, ok := m.weight[ekey(a, b)]; ok {
+		g = w
+	}
+	m.nodes[a].addPeer(m.nodes[b], g)
+	m.nodes[b].addPeer(m.nodes[a], g)
+}
+
+// ekey is the order-independent key for an undirected edge.
+func ekey(a, b NodeID) [2]NodeID {
+	if a < b {
+		return [2]NodeID{a, b}
+	}
+	return [2]NodeID{b, a}
 }
 
 func (m *Mesh) Node(id NodeID) *Node { return m.nodes[id] }
