@@ -60,15 +60,16 @@ func emitVDroop(path string) {
 	time.Sleep(time.Second)
 
 	var b strings.Builder
-	b.WriteString("delta f V Videal\n")
+	b.WriteString("delta f V Videal Teff\n")
 	for i, id := range ids {
 		if i == 0 { // the source pins its own field; it is never "learned", so report the pin.
-			fmt.Fprintf(&b, "%d %.6f %.6f %.6f\n", 0, cfg.F0, 1.0, 1.0)
+			fmt.Fprintf(&b, "%d %.6f %.6f %.6f %.6f\n", 0, cfg.F0, 1.0, 1.0, 0.0)
 			continue
 		}
 		f, v, _, _ := m.Node(id).Field(src)
 		ideal := 1.0 / (1.0 + cfg.Alpha*float64(i))
-		fmt.Fprintf(&b, "%d %.6f %.6f %.6f\n", i, f, v, ideal)
+		teff := (1.0/v - 1.0) / cfg.Alpha // effective transit the measured V implies (≥ δ: the relay dwell)
+		fmt.Fprintf(&b, "%d %.6f %.6f %.6f %.6f\n", i, f, v, ideal, teff)
 	}
 	write(path, b.String())
 }

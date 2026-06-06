@@ -1,4 +1,6 @@
-% Measured field droop along a line vs. hop distance. Data: vdroop.dat (figgen).
+% Measured field droop along a line vs. hop distance, with the measured-below-theory gap shaded —
+% the protocol ages V slightly faster than the unit-transit law because a route also dwells in the
+% RIB between refreshes (extra proper time). Data: vdroop.dat (figgen). Needs \usepgfplotslibrary{fillbetween}.
 \providecommand{\figpath}{figures/}
 \begin{tikzpicture}
 \begin{axis}[
@@ -11,13 +13,15 @@
   grid=both, grid style={black!8},
   tick align=outside, tick pos=left,
 ]
-\addplot[draw=black, dashed, thick, mark=none, samples at={0,...,8}]
+\addplot[name path=theory, draw=black, dashed, thick, mark=none]
   table[x=delta, y=Videal] {\figpath vdroop.dat};
 \addlegendentry{$1/(1+\alpha\delta)$ (theory)}
-\addplot[mark=square*, thick, red!75!black, mark options={scale=0.9}]
+\addplot[name path=meas, draw=red!75!black, thick, mark=square*, mark options={scale=0.85}]
   table[x=delta, y=V] {\figpath vdroop.dat};
 \addlegendentry{vitality $V$ (measured)}
-\addplot[mark=*, thick, blue!70!black, mark options={scale=0.9}]
+\addplot[red!55!black, opacity=0.18] fill between[of=theory and meas];
+\addlegendentry{relay dwell (extra proper time)}
+\addplot[draw=blue!70!black, thick, mark=*, mark options={scale=0.85}]
   table[x=delta, y=f] {\figpath vdroop.dat};
 \addlegendentry{routing potential $f$ (measured)}
 \end{axis}
