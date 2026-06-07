@@ -69,8 +69,9 @@ go.work.sum
 # ============================================================
 # Project
 # ============================================================
-# Compiled paper (regenerate with latexmk); generated .dat tables ARE tracked
-paper/ring.pdf
+# Compiled paper paper/ring.pdf IS tracked — committed so it renders in GitHub's file
+# viewer without a local rebuild; regenerate with `pdflatex ring.tex` (twice). Generated
+# .dat tables are tracked too.
 # Figure-preview throwaways (paper/figures/_preview.tex)
 paper/figures/_preview.pdf
 paper/figures/_p*.png
