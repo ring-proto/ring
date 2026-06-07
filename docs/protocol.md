@@ -13,7 +13,7 @@ A RING node maintains, **for each destination it has heard of**, two transported
 - a **routing potential** $f$ (the `Pot` field): a screened-diffusion potential, highest at the destination, that a packet follows *up*-gradient; and
 - a **vitality** $V\in[0,1]$ (the `Vit` field): confidence that the destination is alive, which droops with distance and decays when the destination falls silent.
 
-Direction comes from the gradient of $f$; liveness comes from thresholding $V$.
+Direction comes from the gradient of $f$; liveness comes from policy-thresholding $V$.
 
 ```mermaid
 flowchart TD
@@ -23,7 +23,7 @@ flowchart TD
     node -->|"$$\text{liveness}: \text{threshold}\ V$$"| live["$$\text{act} \iff V \ge \varphi$$"]
 ```
 
-Each node runs an independent loop: it **receives** advertisements from its neighbours, **relaxes** its two fields one step, and **emits** its own advertisement. There is no global clock, no synchronized round, no leader, and no per-route timer. A dead destination's potential drains and its vitality decays to zero on their own — there is nothing to expire.
+Each node runs an independent loop: it **receives** advertisements from its neighbours, **relaxes** its two fields one step, and **emits** its own advertisement. There is no global clock, no synchronized round, no leader, and no per-route timer. A dead destination's vitality decays to zero; a dead relay's stale potential loses influence as the corresponding link conductance ages toward zero. There is nothing load-bearing to expire.
 
 This specification describes the **base, clock-free protocol**. A clock-synchronized deployment MAY use the optional refinement of §11; it is never required.
 
@@ -35,7 +35,7 @@ This specification describes the **base, clock-free protocol**. A clock-synchron
 - **Tick** — the protocol's **proper-time quantum**, a chosen duration (reference: a few milliseconds). It is *both* the unit in which vitality aging and per-hop staleness are counted *and* the nominal period at which a node emits. A Tick is a **cadence**, not a timeout: nothing fails when one elapses.
 - **Local clock** — each node's own monotonic clock. Nodes are **not** assumed synchronized; a node uses its clock only to measure *its own* elapsed durations and never compares it against another node's (§10–§11).
 - **Relaxation cycle** — one iteration of *receive → age → relax → emit* (§6).
-- **Aging rate** $\alpha$ — the rate at which vitality decays per Tick of proper time (§9).
+- **Aging rate** $\alpha$ — the proper-time stale-evidence rate used for both vitality and link conductance (§8–§9).
 - **Screening** $\kappa$ — sets the routing field's reach, $\lambda=\sqrt{D/\kappa}$ (§8).
 - **Threshold** $\varphi$ — the vitality a consumer requires before acting on a route (§13).
 
@@ -105,17 +105,17 @@ flowchart TD
 The relaxation step (the cadence branch) is:
 
 1. **Age.** Advance every $V^d$ toward zero by the local time elapsed since it was last aged (§9).
-2. **Relax the routing field.** For each known destination $d$ (other than self), recompute the screened balance over the bidirectional neighbours $N^{\leftrightarrow}(i)$ (§7):
+2. **Relax the routing field.** For each known destination $d$ (other than self), recompute the screened balance over the bidirectional neighbours $N^{\leftrightarrow}(i)$ (§7), using each neighbour's effective conductance $g^{\mathrm{eff}}_p$ (§8):
    $$
-   f^d_i \;\leftarrow\; \frac{\displaystyle\sum_{p\,\in\,N^{\leftrightarrow}(i)} D\,f^d_p}{D\,\bigl|N^{\leftrightarrow}(i)\bigr| + \kappa}.
+   f^d_i \;\leftarrow\; \frac{\displaystyle\sum_{p\,\in\,N^{\leftrightarrow}(i)} g^{\mathrm{eff}}_p\,f^d_p}{\displaystyle\sum_{p\,\in\,N^{\leftrightarrow}(i)} g^{\mathrm{eff}}_p + \kappa}.
    $$
    The self field stays pinned at $F_0$. This is one Jacobi sweep of the screened-Poisson operator.
-3. **Recompute the next hop.** Among bidirectional neighbours strictly uphill of $f^d_i$, choose the one of maximum up-gradient current $J^d_{ip}=D\,(f^d_p-f^d_i)$:
+3. **Recompute the next hop.** Among bidirectional neighbours strictly uphill of $f^d_i$, choose the one of maximum up-gradient current $J^d_{ip}=g^{\mathrm{eff}}_p\,(f^d_p-f^d_i)$:
    $$
    \mathrm{via}^d \;=\; \operatorname*{arg\,max}_{p\,:\,f^d_p>f^d_i} \; J^d_{ip}.
    $$
    If no neighbour is uphill, $\mathrm{via}^d$ is empty (a transient local minimum; the node holds).
-4. **Emit.** Build the message: the self-pin, plus an entry $(\,d,\ f^d_i,\ V^d_i\,)$ for every destination whose potential is at or above the floor and whose $\mathrm{via}^d$ is defined. Set $\mathrm{Hears}$ to the neighbours heard within the freshness window. Multicast to every neighbour.
+4. **Emit.** Build the message: the self-pin, plus an entry $(\,d,\ f^d_i,\ V^d_i\,)$ for every destination whose potential is at or above the floor and whose $\mathrm{via}^d$ is defined. Set $\mathrm{Hears}$ to neighbours whose aged conductance is still above the implementation floor. This is pruning/policy over a continuous value, not a foundational freshness window. Multicast to every neighbour.
 
 ## 7. Adjacency
 
@@ -134,14 +134,20 @@ sequenceDiagram
     Note over A,B: link bidirectional, fields now relax over it
 ```
 
-A neighbour contributes to the field relaxation and is a forwarding candidate **only while bidirectional and heard within the freshness window $\mathrm{Fresh}$** (a small number of Ticks). This freshness window is the *one* place a staleness threshold appears, and it is confined to the **link layer** — it answers "is this adjacency still up?", not "is this route or destination still good?" The routing and liveness layers above it are timer-free (§10).
+A neighbour contributes to the field relaxation and is a forwarding candidate while it is bidirectional. Staleness is not handled by a fixed freshness window. Instead, the last-heard age $k$ of that neighbour ages the link's conductance as added series resistance:
+$$
+\frac{1}{g^{\mathrm{eff}}(k)}=\frac{1}{g}+\alpha k,
+\qquad
+g^{\mathrm{eff}}(k)=\frac{g}{1+\alpha k g}.
+$$
+A silent neighbour can remain represented in memory, but its contribution to the field and current split drains continuously to zero. Implementations may prune links once $g^{\mathrm{eff}}$ is negligible, but that is a scaling/policy cutoff over the continuous field, not a load-bearing protocol timer.
 
 ## 8. The routing field
 
-$f$ is a screened-diffusion potential: pinned at $F_0$ at each destination and, everywhere else, relaxed to the conductance-weighted average of neighbours attenuated by $\kappa$ (step 2 above). At the fixed point the field satisfies the screened-Poisson balance $(\mathcal{L}+\kappa I)f=0$ away from the pin, from which (`ring.md` §5):
+$f$ is a screened-diffusion potential: pinned at $F_0$ at each destination and, everywhere else, relaxed to the effective-conductance-weighted average of neighbours attenuated by $\kappa$ (step 2 above). At any finite staleness snapshot the field satisfies the same screened balance $(\mathcal{L}_{g^{\mathrm{eff}}}+\kappa I)f=0$ away from the pin, from which (`ring.md` §5):
 
 - the field's only maxima are the pinned destinations, so following it up-gradient **cannot loop or black-hole**;
-- reach is a length $\lambda=\sqrt{D/\kappa}$: the field decays smoothly with distance and falls below the floor far from the destination, which bounds how many destinations a node tracks;
+- reach is a length $\lambda\approx\sqrt{D/\kappa}$: the field decays smoothly with distance and falls below the floor far from the destination, which bounds how many destinations a node tracks;
 - a node under load MAY raise a local screening term (congestion), which flattens its potential and steers traffic around it without weakening any guarantee.
 
 ## 9. The vitality field (clock-free)
@@ -186,12 +192,12 @@ When a destination dies it stops asserting $\mathrm{Vit}=1$; every held value ag
 
 "Timer-free" has a precise meaning here. RING has **none** of the timers a distance-vector or link-state protocol relies on:
 
-- no **route-expiry / garbage-collection timer** — a dead route's potential drains and its vitality decays on their own;
+- no **route-expiry / garbage-collection timer** — a dead destination's vitality decays, and a dead relay's stale potential loses conductance, on their own;
 - no **hold-down timer** — there is no count-to-infinity to suppress (the field is bounded by its pin), so nothing must be frozen;
 - no **dead-interval / failure-detection timeout** — liveness is the continuous vitality field, severed by a *threshold crossing*, not by "no message for $T$ seconds";
 - no **sequence numbers or tombstones** — there is no versioned state to expire or to suppress resurrection of.
 
-The only time-derived quantities are (a) the **proper-time aging** of vitality, which is continuous and measured in each node's own frame, and (b) the **emission cadence** (a node re-advertises about every Tick), which is a refresh rate, not a deadline. The single staleness *window* in the protocol is the link-layer freshness check of §7, governing adjacency alone.
+The only time-derived quantities are (a) the **proper-time aging** of stale evidence — vitality in $U=1/V$ and link conductance in $R=1/g$ — measured in each node's own frame, and (b) the **emission cadence** (a node re-advertises about every Tick), which is a refresh rate, not a deadline. Thresholds such as $\varphi$, the field floor, pruning negligible $g^{\mathrm{eff}}$, or deployment failover cutoffs are policy reads over continuous fields, not load-bearing timers.
 
 ## 11. No shared clock
 
@@ -235,13 +241,12 @@ The next hop is $\mathrm{via}^d$ (the dominant up-gradient current); a node MAY 
 | symbol | meaning | reference |
 |---|---|---|
 | $\mathrm{Tick}$ | proper-time quantum and nominal emission period | a few ms; MUST be $\ge$ the max per-hop delay |
-| $\alpha$ | vitality aging rate per Tick | $0.04$ (vitality horizon $\approx 1/\alpha \approx 25$ hops) |
-| $\varphi$ | vitality action threshold | $0.5$ |
+| $\alpha$ | stale-evidence aging rate per Tick; vitality and link conductance | $\approx\sqrt{\kappa/D}$ in the reference sim (`0.2236` for `κ=0.05,D=1`) |
+| $\varphi$ | policy threshold for action | `0.2` in the reference sim (`R_V\approx4\lambda`) |
 | $\kappa$ | screening; reach $\lambda=\sqrt{D/\kappa}$ | $0.05$ |
 | $D$ | bulk conductance | $1$ |
 | $F_0$ | source self-pin | $1$ |
 | floor | reachability floor on the field | $10^{-4}$ |
-| $\mathrm{Fresh}$ | link-layer freshness window, in Ticks | ${\sim}8$ |
 
 $\mathrm{Tick}\ge$ max per-hop delay is the one timing constraint: it keeps the one-Tick-per-relay retardation a safe (non-under-counting) estimate of staleness. Everything else is a reach / decay / threshold trade.
 
@@ -255,6 +260,6 @@ A four-node line $n_0 - n_1 - n_2 - n_3$, clock-free, after convergence. Each no
 | $n_2$ | $(n_2,\,1.000,\,1.000)$ | $(0.714,\,0.962)$ | — | $(0.488,\,0.962)$ | $(0.238,\,0.891)$ |
 | $n_0$ | $(n_0,\,1.000,\,1.000)$ | $(0.442,\,0.860)$ | $(0.465,\,0.926)$ | $(0.952,\,0.962)$ | — |
 
-Reading $n_0$'s view of the far endpoint $n_3$ (three hops away): $\mathrm{Pot}=0.442$ — the screened field has decayed with distance but stays well above the floor, so $n_3$ is *known* — and $\mathrm{Vit}=0.860$ — vitality has drooped over three relays, $\approx 1/(1+\alpha\delta)$ with a little dwell, and stays above $\varphi=0.5$, so the route is *acted on*. To forward toward $n_3$, $n_0$ follows its $\mathrm{via}$ up the potential gradient.
+Reading $n_0$'s view of the far endpoint $n_3$ (three hops away): $\mathrm{Pot}=0.442$ — the screened field has decayed with distance but stays well above the floor, so $n_3$ is *known* — and $\mathrm{Vit}$ has drooped over three relays, $\approx 1/(1+\alpha\delta)$ with a little dwell, but stays above the policy threshold $\varphi$, so the route is *acted on*. To forward toward $n_3$, $n_0$ follows its $\mathrm{via}$ up the potential gradient.
 
 Now suppose $n_3$ dies. It stops emitting; $n_2$ stops hearing it. With nothing re-asserting $\mathrm{Vit}=1$, every node's vitality toward $n_3$ ages toward zero — and because each relay's retardation makes adopted values no fresher than its own, the chain cannot hold the ghost up. When $n_0$'s vitality toward $n_3$ crosses below $\varphi$, $n_0$ severs the route. No timer fired; a continuously-decaying field crossed a threshold.

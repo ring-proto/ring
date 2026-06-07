@@ -18,12 +18,12 @@ type Mesh struct {
 	// down is PHYSICAL ground truth held by the simulated fabric — which routers are powered off.
 	// It is owned by the sim and consumed ONLY by the data plane (Forward), to decide a packet's
 	// physical fate: a crashed router forwards nothing. The PROTOCOL never reads this. A node
-	// (proto.go) learns a peer is gone solely through the vitality field (V decaying to 0) and the
-	// adjacency-freshness window — there is no global death oracle. That separation is the whole
-	// point of Vitality: the gap between physical death (here, instant) and protocol detection
-	// (V<φ, propagation-delayed) is exactly the black-hole window the data plane measures.
-	index  map[NodeID]int          // shared destination index (id→position), assigned at Add
-	weight map[[2]NodeID]float64   // explicit per-edge conductance, so Relink restores bandwidth
+	// (proto.go) learns a peer is gone through the transported fields: vitality V decays without
+	// fresh evidence, while stale routing evidence loses effective conductance continuously. There
+	// is no global death oracle and no load-bearing freshness threshold in the field foundation;
+	// policy thresholds may still decide when the data plane acts on the continuous fields.
+	index  map[NodeID]int        // shared destination index (id→position), assigned at Add
+	weight map[[2]NodeID]float64 // explicit per-edge conductance, so Relink restores bandwidth
 
 	down   map[NodeID]bool
 	downMu sync.RWMutex // guards down: Kill writes it while concurrent Forward reads via isDown
@@ -60,7 +60,7 @@ func (m *Mesh) LinkW(a, b NodeID, g float64) {
 }
 
 // Cut removes the physical edge a—b at runtime (both routers stay powered): each stops hearing the
-// other, so after the adjacency-freshness window the fields reconverge around the cut — an edge
+// other, so the stale link conductance drains and the fields reconverge around the cut — an edge
 // partition. Relink restores it. Together with Kill/Revive (node failure) they stage and heal both
 // kinds of partition.
 func (m *Mesh) Cut(a, b NodeID) {
@@ -103,8 +103,8 @@ func (m *Mesh) Start() {
 }
 
 // Kill silences a node: it stops emitting and relaxing — a dead source / failed node. Its
-// neighbours stop hearing it, so their vitality toward it ages to zero with nothing to refresh
-// it (and, after the link-freshness window, its stale potential is dropped from their fields).
+// neighbours stop hearing it, so vitality toward it ages to zero with nothing to refresh it and
+// stale potentials from it lose influence as their effective link conductance drains.
 func (m *Mesh) Kill(id NodeID) {
 	if s := m.stops[id]; s != nil {
 		close(s)

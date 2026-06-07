@@ -34,7 +34,7 @@ import (
 // and ring_kill.dat / dv_kill.dat (the death-event markers, as 2-point vertical segments from data).
 func emitDVRing(dir string) {
 	const N = 5 // A B C D E
-	cfg := proto.DefaultConfig()
+	cfg := figCfg()
 	cfg.Tick = 20 * time.Millisecond // calmer cadence: cheap async runs, same per-hop behaviour
 
 	// ---- LEFT: synchronous distance-vector, counts to infinity (reproducible) ----
@@ -91,8 +91,8 @@ func emitDVRing(dir string) {
 	nConv := int(converge / sampleEvy)
 	nDecay := int(decay / sampleEvy)
 	total := nConv + nDecay
-	grid := make([]float64, total)            // wall time (ms) since run start, kill at index nConv
-	samples := make([][]float64, total)       // samples[k] = the V readings across reps at grid point k
+	grid := make([]float64, total)      // wall time (ms) since run start, kill at index nConv
+	samples := make([][]float64, total) // samples[k] = the V readings across reps at grid point k
 	for k := range samples {
 		grid[k] = float64(k) * sampleEvy.Seconds() * 1000
 		samples[k] = make([]float64, 0, reps)

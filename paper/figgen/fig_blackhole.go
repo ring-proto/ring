@@ -38,7 +38,7 @@ func emitBlackhole(dir string) {
 // fabric. Reps with independent seeds; the CDF is the pooled empirical distribution (the hop count of
 // a delivered packet is a routing property, deterministic given the field, so pooling is honest).
 func emitBlackholeCDF(dir string) {
-	cfg := proto.DefaultConfig()
+	cfg := figCfg()
 	cfg.Tick = 20 * time.Millisecond // calmer cadence: cheap async run
 	cfg.Alpha = 0.025                // size the 12×10 grid INSIDE the vitality horizon so steady-state
 	//                                  delivery is complete and the only severances/black-holes seen
@@ -122,7 +122,7 @@ func emitBlackholeCDF(dir string) {
 // fixed window. We align reps on window INDEX (window 0 = first after warmup) and report the median
 // ratio and median black-hole count per window, plus a band (p25..p75).
 func emitBlackholeTS(dir string) {
-	cfg := proto.DefaultConfig()
+	cfg := figCfg()
 	cfg.Tick = 20 * time.Millisecond
 	cfg.Alpha = 0.025 // grid inside the vitality horizon: steady-state delivery is complete (see CDF note)
 	const W, H = 12, 10

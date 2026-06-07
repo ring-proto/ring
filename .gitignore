@@ -81,3 +81,4 @@ paper/figures/_p*.png
 .claude/
 /figgen
 /ringscope
+.hermes/

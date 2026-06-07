@@ -37,7 +37,7 @@ func emitLoops(dir string) {
 		tickMs = 20   // calmer tick so the scenario runs cheaply (cfg.Tick = 20ms)
 		stepMs = 4.0  // sample cadence (ms): loops live <1 tick, so we must sample sub-tick
 	)
-	cfg := proto.DefaultConfig()
+	cfg := figCfg()
 	cfg.Tick = tickMs * time.Millisecond
 	id := func(x, y int) proto.NodeID { return proto.NodeID(fmt.Sprintf("g%d-%d", x, y)) }
 	src := id(0, 0)

@@ -1,0 +1,48 @@
+% Link-aging reroutes around a dead RELAY on its own (§5.4), measured on the diamond at the illustrative
+% α=0.04: a preferred 2-hop path src-a-dst and a longer 3-hop backup src-b1-b2-dst; the relay `a` is
+% killed at t=0. The destination stays alive via the backup, so vitality toward it never severs — only
+% the aged link conductance can reroute. TOP: delivery fraction after the kill — the NoLinkAge ablation
+% (freeze: a's frozen potential is a permanent pin, delivery stays 0) vs the foundation (aged: a's link
+% drains and the field reroutes, delivery recovers to 1). BOTTOM: the effective conductance — the dead
+% link draining as the reciprocal 1/g_eff = 1/g + αk (coinciding with the ideal overlay) and a live link
+% holding near g (a bounded sawtooth). Data: linkaging_delivery.dat, linkaging_drain.dat.
+\providecommand{\figpath}{figures/}
+\begin{tikzpicture}
+\begin{axis}[
+  name=del,
+  width=\linewidth, height=4.8cm,
+  xlabel={time after the relay is killed (ms)}, ylabel={delivery fraction},
+  xmin=0, xmax=3550, ymin=-0.05, ymax=1.10,
+  xtick={0,500,1000,1500,2000,2500,3000,3500}, x tick label style={/pgf/number format/1000 sep={}},
+  legend pos=south east, legend cell align=left, legend style={font=\scriptsize},
+  grid=both, grid style={black!8}, tick align=outside, tick pos=left,
+]
+\addplot[draw=red!75!black, very thick, mark=none]
+  table[x=t, y=freeze] {\figpath linkaging_delivery.dat};
+\addlegendentry{no link-aging (freeze): permanent black hole}
+\addplot[draw=teal!65!black, very thick, mark=none]
+  table[x=t, y=aged] {\figpath linkaging_delivery.dat};
+\addlegendentry{link-aging: the field reroutes}
+\node[anchor=west, font=\scriptsize, teal!45!black] at (axis cs:1050,0.55) {dead link drained enough $\Rightarrow$ reroute};
+\end{axis}
+
+\begin{axis}[
+  at={(del.south west)}, anchor=north west, yshift=-1.4cm,
+  width=\linewidth, height=4.8cm,
+  xlabel={time after the relay is killed (ms)}, ylabel={effective conductance $g^{\mathrm{eff}}$},
+  xmin=0, xmax=3550, ymin=0, ymax=1.10,
+  xtick={0,500,1000,1500,2000,2500,3000,3500}, x tick label style={/pgf/number format/1000 sep={}},
+  legend pos=north east, legend cell align=left, legend style={font=\scriptsize},
+  grid=both, grid style={black!8}, tick align=outside, tick pos=left,
+]
+\addplot[draw=teal!65!black, very thick, mark=none]
+  table[x=t, y=g_dead] {\figpath linkaging_drain.dat};
+\addlegendentry{dead link $a$ (measured): $1/g^{\mathrm{eff}}=1/g+\alpha k$}
+\addplot[draw=black!55, densely dashed, line width=0.9pt, mark=none]
+  table[x=t, y=g_ideal] {\figpath linkaging_drain.dat};
+\addlegendentry{ideal $1/(1+\alpha k)$ (overlaid)}
+\addplot[draw=orange!85!black, thick, mark=none]
+  table[x=t, y=g_live] {\figpath linkaging_drain.dat};
+\addlegendentry{live link $b_1$: bounded sawtooth}
+\end{axis}
+\end{tikzpicture}

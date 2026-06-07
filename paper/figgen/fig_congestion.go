@@ -63,7 +63,7 @@ func barbell(m *proto.Mesh, K int) proto.NodeID {
 // the trajectory on a fixed time grid (so reps can be averaged sample-for-sample). The loop is
 // endogenous: no stress is injected, only Crowd is set.
 func chargeTrace(crowd float64, samples int, step time.Duration) []float64 {
-	cfg := proto.DefaultConfig()
+	cfg := figCfg()
 	cfg.Crowd = crowd
 	cfg.Tick = 20 * time.Millisecond // calmer tick so the async run is cheap
 	m := proto.NewMesh(cfg)
@@ -141,7 +141,7 @@ func emitCongestionTimeseries(path string) {
 // `reps` independent runs (the async sim is jittery). At the fixed point µ* = c·s* (the reg() target).
 func settleEndogenous(crowd float64, reps int) (muStar, sStar float64) {
 	for r := 0; r < reps; r++ {
-		cfg := proto.DefaultConfig()
+		cfg := figCfg()
 		cfg.Crowd = crowd
 		cfg.Tick = 20 * time.Millisecond
 		m := proto.NewMesh(cfg)

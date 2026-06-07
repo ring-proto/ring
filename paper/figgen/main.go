@@ -39,7 +39,17 @@ func main() {
 	emitCongestion(*out)
 	emitPartition(*out)
 	emitLoops(*out)
+	emitLinkAging(*out)
 	fmt.Println("figgen: wrote tables to", *out)
+}
+
+// figCfg is DefaultConfig at an illustrative aging rate: the figures use α=0.04 for legibility (a gentler
+// vitality droop and link drain), distinct from the κ-scaled default α≈0.224 (§8) the protocol ships
+// with. The figures illustrate the laws' shapes; the alignment numbers live in §8.
+func figCfg() proto.Config {
+	c := proto.DefaultConfig()
+	c.Alpha = 0.04
+	return c
 }
 
 // waitUntil polls pred until it holds or the deadline passes; returns whether it held.
@@ -59,7 +69,7 @@ func waitUntil(d time.Duration, pred func() bool) bool {
 // retarded vitality V (1/(1+alpha*delta) by hops). It overlays the closed-form vitality so the
 // figure shows measurement tracking theory. Columns: delta f V Videal.
 func emitVDroop(path string) {
-	cfg := proto.DefaultConfig()
+	cfg := figCfg()
 	const N = 9
 	m := proto.NewMesh(cfg)
 	ids := proto.BuildLine(m, N)
@@ -90,7 +100,7 @@ func emitVDroop(path string) {
 // graceful severance, no flap. Writes timeseries.dat (t_ms V phi) and timeseries_kill.dat (the
 // single kill time) so the figure can draw the event marker from data, not a hard-coded constant.
 func emitTimeseries(dir string) {
-	cfg := proto.DefaultConfig()
+	cfg := figCfg()
 	const N = 7
 	m := proto.NewMesh(cfg)
 	ids := proto.BuildLine(m, N)
@@ -130,7 +140,7 @@ func emitTimeseries(dir string) {
 // This one table drives the f heatmap, the V heatmap, and the flux-weighted flow quiver. Columns:
 // x y f V dx dy cur known.
 func emitGridField(path string) {
-	cfg := proto.DefaultConfig()
+	cfg := figCfg()
 	const W, H = 11, 11
 	m := proto.NewMesh(cfg)
 	proto.BuildGrid(m, W, H)
@@ -203,7 +213,7 @@ func emitGridField(path string) {
 // Bellman metric that "counts to infinity"), and V = 1/U (its bounded reciprocal). The grid drives the
 // V light-cone heatmap; the slice drives the twin-axis U-vs-V reciprocal panel. [ideal] = exact.
 func emitReciprocal(dir string) {
-	cfg := proto.DefaultConfig()
+	cfg := figCfg()
 	const W, H = 41, 41
 	cx, cy := W/2, H/2
 	abs := func(a int) float64 {

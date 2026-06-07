@@ -50,21 +50,22 @@ type Config struct {
 	Kappa  float64       // screening coefficient; reach lambda = sqrt(D/Kappa)
 	F0     float64       // source self-pin
 	Floor  float64       // reachability floor on the field
-	Alpha  float64       // vitality aging rate per Tick of proper time
+	Alpha  float64       // proper-time aging rate per Tick: ages vitality V and (as series resistance) link conductance
 	Phi    float64       // vitality action threshold
 	Tick   time.Duration // proper-time quantum and nominal emission period
-	Fresh  float64       // link-layer freshness window, in Ticks (adjacency liveness only)
 	HopAge bool          // retardation mode: false = measured cross-clock transit (needs clock sync);
 	//                      true = fixed one-Tick per relay (clock-free, robust to skew)
-	Crowd float64 // congestion coupling c: a node's charge target is c·stress (0 = congestion off)
-	Glide float64 // glide rate r of the non-overshoot integrator reg() (only relevant when Crowd>0)
-	NoRetard bool // ablation (Thm 6.2): disable transit-aging so the offered vitality is adopted raw —
+	Crowd    float64 // congestion coupling c: a node's charge target is c·stress (0 = congestion off)
+	Glide    float64 // glide rate r of the non-overshoot integrator reg() (only relevant when Crowd>0)
+	NoRetard bool    // ablation (Thm 6.2): disable transit-aging so the offered vitality is adopted raw —
 	//              the un-retarded adopt-max, which locks a dead source's V at the spurious fixed point
+	NoLinkAge bool // ablation (§5.4): disable link-conductance aging so a stale link keeps its raw g —
+	//               freezes a dead relay's potential as a spurious pin (the no-failure-detection regime)
 }
 
 func DefaultConfig() Config {
-	return Config{D: 1, Kappa: 0.05, F0: 1, Floor: 1e-4, Alpha: 0.04, Phi: 0.5,
-		Tick: 4 * time.Millisecond, Fresh: 8, HopAge: true, // clock-free by default
+	return Config{D: 1, Kappa: 0.05, F0: 1, Floor: 1e-4, Alpha: 0.22360679775, Phi: 0.2,
+		Tick: 4 * time.Millisecond, HopAge: true, // clock-free by default
 		Crowd: 0, Glide: 1} // congestion off by default (Crowd=0 ⇒ charge stays 0)
 }
 
@@ -78,6 +79,16 @@ func (c Config) age(v, ticks float64) float64 {
 		return v
 	}
 	return v / (1 + c.Alpha*ticks*v)
+}
+
+// effCond is the effective conductance of a link last heard `staleness` ticks ago: the raw conductance
+// aged as series resistance, age(g, staleness) = g/(1+α·staleness·g), unless the NoLinkAge ablation is
+// set, in which case the raw conductance is kept (a stale link never drains — the freeze regime).
+func (c Config) effCond(g, staleness float64) float64 {
+	if c.NoLinkAge {
+		return g
+	}
+	return c.age(g, staleness)
 }
 
 // reg is the non-overshoot integrator of §5.8: reg(v,T,r) = T + (v−T)/(1 + r·|v−T|). It shrinks the
@@ -137,6 +148,7 @@ type Node struct {
 
 	fbuf []float64 // reused neighbour-sum scratch (len n)
 	bbuf []*peer   // reused bidirectional-neighbour scratch (deg)
+	gbuf []float64 // reused per-link effective-conductance scratch (deg), aligned with bbuf
 	tbuf []chan Message
 }
 
@@ -251,12 +263,20 @@ func (n *Node) step() {
 	// plus any externally-offered extra load; inert when Crowd=0. (§5.7–§5.8, self-driven loop)
 	n.charge = reg(n.charge, n.cfg.Crowd*(n.load+n.stress), n.cfg.Glide)
 	bidir := n.bidir(now)
+	// effective per-link conductance: a silent link gains series resistance, so its conductance ages out
+	// by the SAME proper-time law as vitality — g_eff = age(g, staleness) = g/(1 + α·staleness·g), i.e.
+	// 1/g_eff = 1/g + α·staleness (staleness is series resistance). This is the routing-field analog of
+	// the retarded V; a dead neighbour's frozen advertisement drains to zero on its own (no Fresh window).
+	geff := n.gbuf[:0]
 	gsum := 0.0
 	for _, p := range bidir {
-		gsum += p.g // total link conductance (bandwidth) into this node
+		g := n.cfg.effCond(p.g, ticksBetween(p.heard, now, n.cfg.Tick))
+		geff = append(geff, g)
+		gsum += g // total effective link conductance into this node
 	}
+	n.gbuf = geff
 
-	deltas := make([]Entry, 0, n.n)                                // the message payload (escapes)
+	deltas := make([]Entry, 0, n.n)                                    // the message payload (escapes)
 	deltas = append(deltas, Entry{Dest: n.idx, Pot: n.cfg.F0, Vit: 1}) // self-pin: a live source asserts V=1
 	carried := 0.0                                                     // self-measured current this relax
 	if gsum > 0 {
@@ -265,8 +285,8 @@ func (n *Node) step() {
 		for d := range fb {
 			fb[d] = 0
 		}
-		for _, p := range bidir { // neighbour-sum: fb = Σ g_ij·pot_nbr  (bandwidth-weighted)
-			g, pp := p.g, p.pot
+		for k, p := range bidir { // neighbour-sum: fb = Σ g_eff·pot_nbr  (effective-bandwidth-weighted)
+			g, pp := geff[k], p.pot
 			for d := 0; d < n.n; d++ {
 				fb[d] += g * pp[d]
 			}
@@ -279,8 +299,8 @@ func (n *Node) step() {
 			fd := fb[d] * inv
 			n.f[d] = fd
 			best, bvia := 0.0, -1
-			for _, p := range bidir { // current split: dominant max-flux (bandwidth × gradient) hop
-				if w := p.g * (p.pot[d] - fd); w > best {
+			for k, p := range bidir { // current split: dominant max-flux (effective-bandwidth × gradient) hop
+				if w := geff[k] * (p.pot[d] - fd); w > best {
 					best, bvia = w, p.idx
 				}
 			}
@@ -393,6 +413,24 @@ func (n *Node) Kappa() float64 {
 	return n.kappa
 }
 
+// EffConductance reports the current effective conductance toward neighbour nbr: the raw link
+// conductance aged by how stale our last advertisement from it is, g_eff = age(g, staleness). Equals
+// the raw conductance for a just-heard link and decays toward zero as the link goes silent.
+func (n *Node) EffConductance(nbr NodeID) float64 {
+	now := n.now()
+	j, ok := n.index[nbr]
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if !ok {
+		return 0
+	}
+	p := n.peers[j]
+	if p == nil {
+		return 0
+	}
+	return n.cfg.effCond(p.g, ticksBetween(p.heard, now, n.cfg.Tick))
+}
+
 // tick returns the emission period / proper-time quantum under the lock, so the Run loop reads it
 // race-free while SetTick retunes it.
 func (n *Node) tick() time.Duration {
@@ -428,11 +466,13 @@ func (n *Node) ageAll(now time.Time) {
 	n.lastAged = now
 }
 
-// bidir collects the bidirectional, fresh neighbours into the reused scratch buffer.
+// bidir collects the bidirectional neighbours into the reused scratch buffer. Staleness is NOT gated
+// here by a freshness window — a silent link is kept but its conductance ages out in step() (g_eff =
+// age(g, staleness)), so a dead neighbour drains to zero on its own rather than being cut at a threshold.
 func (n *Node) bidir(now time.Time) []*peer {
 	out := n.bbuf[:0]
 	for _, p := range n.peers {
-		if p.hears && ticksBetween(p.heard, now, n.cfg.Tick) < n.cfg.Fresh {
+		if p.hears { // bidirectional echo only; the aged conductance handles staleness/death
 			out = append(out, p)
 		}
 	}
@@ -441,11 +481,13 @@ func (n *Node) bidir(now time.Time) []*peer {
 }
 
 // heardList is the freshly-allocated list of neighbour indices we currently hear (it escapes into the
-// emitted message, so it cannot reuse a buffer).
+// emitted message, so it cannot reuse a buffer). A neighbour is "heard" while its aged conductance is
+// still above the field floor — the same proper-time decay as everything else, so a long-silent link
+// drops from the echo on its own (an infinitely-stale / never-heard peer ages to ~0 and is excluded).
 func (n *Node) heardList(now time.Time) []int {
 	var out []int
 	for idx, p := range n.peers {
-		if ticksBetween(p.heard, now, n.cfg.Tick) < n.cfg.Fresh {
+		if n.cfg.effCond(p.g, ticksBetween(p.heard, now, n.cfg.Tick)) > n.cfg.Floor {
 			out = append(out, idx)
 		}
 	}

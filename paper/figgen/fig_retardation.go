@@ -31,7 +31,7 @@ import (
 // lock; the recurrence is what isolates and exhibits the spurious fixed point the theorem warns of.
 // Columns: t Vablation Vretarded Vlo Vhi phi. Plus retard_kill.dat (the kill instant as a 2-point segment).
 func emitRetardation(dir string) {
-	cfg := proto.DefaultConfig()
+	cfg := figCfg()
 	cfg.Tick = 12 * time.Millisecond
 	const N = 5     // a short line: source ... observer is 4 hops
 	const reps = 21 // async timing is noisy — median + percentile band over many runs

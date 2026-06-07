@@ -38,7 +38,7 @@ func emitSkew(dir string) {
 	// scoreRep runs one converge-then-sever cycle under a randomised per-node skew pattern and returns
 	// whether the run was correct (live⇒routable AND dead⇒severed) and the steady live vitality observed.
 	scoreRep := func(hopAge bool, maxSkew int, rng *rand.Rand) (correct bool, vLive float64) {
-		cfg := proto.DefaultConfig()
+		cfg := figCfg()
 		cfg.HopAge = hopAge
 		cfg.Tick = 15 * time.Millisecond // a calmer Tick so the async sim runs cheaply
 		m := proto.NewMesh(cfg)

@@ -3,8 +3,9 @@
 This document specifies the routing protocol. Each node maintains, for every destination, two scalar
 fields obtained by local relaxation of its neighbours' values: a **routing potential** $f$ whose
 gradient gives the next hop, and a **vitality** $V\in[0,1]$ that measures confidence the destination is
-live. Packets are forwarded up the potential; a route is acted on when its vitality clears a chosen
-threshold. Both fields are governed by the same screened, monotone, contraction dynamics, and every
+live. Packets are forwarded up the potential; a route is acted on when its vitality clears a chosen policy
+threshold. Stale routing evidence ages by the same reciprocal proper-time law, applied to link resistance.
+Both fields are governed by the same screened, monotone, contraction dynamics, and every
 safety property below — loop-freedom, black-hole-freedom, convergence, bounded liveness — is a
 structural consequence of that operator, proved in place.
 
@@ -33,14 +34,15 @@ these two fields.
 |---|---|
 | $G=(V,E)$ | the network graph; $N(i)$ = the bidirectionally-confirmed neighbours of $i$ |
 | $g_{ij}>0$ | conductance of edge $\{i,j\}$, symmetric ($g_{ij}=g_{ji}$); uniform value $D$ |
+| $g^{\mathrm{eff}}_{ij}(k)$ | effective conductance after $k$ stale ticks: $1/g^{\mathrm{eff}}_{ij}=1/g_{ij}+\alpha k$ |
 | $G_i=\sum_{j\in N(i)}g_{ij}$ | total conductance incident on $i$ |
 | $\kappa>0$ | baseline screening (sets reach) |
 | $\mu_i\ge 0$ | local screening from load at $i$; the screening charge is $q_i=\kappa+\mu_i$ |
 | $F_0>0$ | the potential a destination pins for its own field |
 | $f^d_i\ge 0$ | routing potential at $i$ toward $d$ |
 | $V^d_i\in[0,1]$ | vitality (liveness confidence) at $i$ toward $d$ |
-| $\alpha>0$ | vitality aging rate |
-| $\varphi\in(0,1)$ | vitality threshold for action |
+| $\alpha>0$ | proper-time stale-evidence aging rate; used for vitality and link aging ($\beta=\alpha$) |
+| $\varphi\in(0,1)$ | policy threshold for acting on vitality |
 | tick | one relaxation period; proper time is counted in ticks |
 
 **Adjacency by echo.** $j\in N(i)$ only if $i$ hears $j$ *and* $j$'s advertisement names $i$. A one-way
@@ -128,6 +130,21 @@ every node relaxes infinitely often using possibly-stale neighbour values (bound
 converges to $f^{d\star}$.
 *Proof.* $M\ge 0$ entrywise, so $\rho(M)\le\lVert M\rVert_\infty=\gamma<1$; the Chazan–Miranker theorem
 on chaotic relaxation gives convergence of $x\leftarrow Mx$ whenever $\rho(M)<1$. $\;\blacksquare$
+
+Bounded-delay staleness is not node death. A silent relay is an unbounded delay: its last potential may
+remain stored while the physical node no longer diffuses or leaks. RING therefore ages the conductance of
+stale routing evidence as added series resistance,
+$$
+\boxed{\;\frac{1}{g^{\mathrm{eff}}_{ij}(k)}=\frac{1}{g_{ij}}+\alpha k\;},\qquad
+g^{\mathrm{eff}}_{ij}(k)=\frac{g_{ij}}{1+\alpha k g_{ij}}.
+\tag{3.3a}
+$$
+This is the same reciprocal law as vitality aging: $U=1/V$ gains $\alpha k$, and link resistance $R=1/g$
+gains $\alpha k$. If one writes a separate link-aging rate $\beta$, the foundation sets $\beta=\alpha$.
+For finite $k$, $g^{\mathrm{eff}}\ge0$ leaves the screened operator an M-matrix with $q_i\ge\kappa$; as
+$k\to\infty$, $g^{\mathrm{eff}}\to0$, so a dead relay's frozen potential loses all coefficient and cannot
+remain a permanent pin. Pruning negligible $g^{\mathrm{eff}}$ is an implementation policy, not a load-bearing
+freshness threshold.
 
 When the charge field drifts (a node's $\mu_i$ changing under load, §3.8) the field tracks a moving
 target rather than a fixed one, and the relevant property is stability, not convergence to a point. Every
@@ -379,8 +396,8 @@ contractions. The data plane is ascent of $f$; liveness is a threshold on $V$.
 | $\kappa$ | baseline screening; reach $\lambda=\sqrt{D/\kappa}$ | $0.01\Rightarrow\lambda=10$ |
 | $F_0$ | destination pin height | $1$ |
 | floor | reachability cutoff on $f$ | $10^{-4}$ |
-| $\alpha$ | vitality aging rate; horizon $R_V=(1/\varphi-1)/\alpha$ | $0.04$ |
-| $\varphi$ | vitality threshold | $0.5\Rightarrow R_V=25$ |
+| $\alpha$ | stale-evidence aging rate; horizon $R_V=(1/\varphi-1)/\alpha$ | $\approx\sqrt{\kappa/D}$ (`0.2236` when `κ=0.05,D=1`) |
+| $\varphi$ | policy threshold for action | `0.2` in the reference sim (`R_V\approx4\lambda`) |
 | $c,\,r$ | load$\to\mu$ coupling and glide rate | per deployment |
 
 *Reach is space, vitality is time, congestion is local screening — one charge on one operator, one field

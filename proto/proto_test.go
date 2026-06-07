@@ -22,7 +22,8 @@ func waitUntil(timeout time.Duration, cond func() bool) bool {
 // if it could resurrect (the un-retarded lock), V would never cross the threshold and this test
 // would hang to its deadline.
 func TestAsyncConvergeAndSever(t *testing.T) {
-	m := NewMesh(DefaultConfig())
+	cfg := DefaultConfig()
+	m := NewMesh(cfg)
 	ids := BuildLine(m, 5) // n0 .. n4
 	O, src := ids[0], ids[4]
 	m.Start()
@@ -33,8 +34,8 @@ func TestAsyncConvergeAndSever(t *testing.T) {
 		t.Fatalf("O never became routable to the live source (V=%.3f)", v)
 	}
 	via, vit, _ := m.Node(O).Route(src)
-	t.Logf("converged: O routes to %s via %s, V=%.3f (4 hops; unit-transit ideal 1/(1+0.04·4)=%.3f)",
-		src, via, vit, 1.0/(1+0.04*4))
+	t.Logf("converged: O routes to %s via %s, V=%.3f (4 hops; unit-transit ideal 1/(1+α·4)=%.3f)",
+		src, via, vit, 1.0/(1+cfg.Alpha*4))
 
 	m.Kill(src) // the source goes silent
 	if !waitUntil(4*time.Second, func() bool { _, _, r := m.Node(O).Route(src); return !r }) {

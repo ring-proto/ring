@@ -32,14 +32,14 @@ import (
 //   - partition_events.dat (label t_ms) — the cut/heal/recovery instants, for vertical markers.
 func emitPartition(dir string) {
 	const (
-		N        = 9      // line length; bridge edge is (N/2-1)–(N/2)
-		R        = 21     // reps to average the async transition jitter
-		PktsPerS = 24     // packets forwarded per sample window
-		preMs    = 120.0  // grid extent before the cut
-		cutMs    = 700.0  // grid extent after the cut (covers black-hole + sever)
-		healAtMs = 700.0  // wall-clock offset (from cut) at which we relink
-		postMs   = 500.0  // grid extent after the heal
-		stepMs   = 20.0   // sample-grid spacing
+		N        = 9     // line length; bridge edge is (N/2-1)–(N/2)
+		R        = 21    // reps to average the async transition jitter
+		PktsPerS = 24    // packets forwarded per sample window
+		preMs    = 120.0 // grid extent before the cut
+		cutMs    = 700.0 // grid extent after the cut (covers black-hole + sever)
+		healAtMs = 700.0 // wall-clock offset (from cut) at which we relink
+		postMs   = 500.0 // grid extent after the heal
+		stepMs   = 20.0  // sample-grid spacing
 	)
 	tick := 20 * time.Millisecond
 	dp := proto.DataPlane{HopDelay: time.Millisecond, TTL: 64}
@@ -61,7 +61,7 @@ func emitPartition(dir string) {
 	per := make([][]float64, G) // per-rep delivery ratio in each window (for the band)
 
 	for rep := 0; rep < R; rep++ {
-		m := proto.NewMesh(proto.DefaultConfig())
+		m := proto.NewMesh(figCfg())
 		ids := proto.BuildLine(m, N)
 		dst, src := ids[0], ids[N-1] // forward across the whole line, over the bridge edge
 		bridgeA, bridgeB := ids[N/2-1], ids[N/2]
