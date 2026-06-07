@@ -73,8 +73,9 @@ go.work.sum
 paper/ring.pdf
 # Figure-preview throwaways (paper/figures/_preview.tex)
 paper/figures/_preview.pdf
-paper/figures/_pv*.png
+paper/figures/_p*.png
 
 # macOS
 .DS_Store
 .claude/
+/figgen

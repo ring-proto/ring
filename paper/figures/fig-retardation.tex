@@ -1,0 +1,42 @@
+% Retardation ablation (Thm 4.2, "retardation is necessary"). A 5-node line: source at one end,
+% observer at the far end; converge, then KILL the source at t=0 and watch the observer's vitality V
+% toward the dead source. Two protocols overlaid:
+%   ABLATION (retardation removed, tau=0): the un-retarded adopt-max refreshes each node with a value
+%     fresher than its own decay, so V LOCKS at the spurious resurrection fixed point V=1 forever — a
+%     dead source the protocol can never let die.
+%   RETARDED (the real protocol, measured from the async reference impl, median + p10-p90 band over
+%     reps): nothing refreshes the field, so V ages through the action threshold phi to ~0 — graceful,
+%     monotone severance. Data: retardation.dat (t Vablation Vretarded Vlo Vhi phi), retard_kill.dat.
+% Needs \usepgfplotslibrary{fillbetween}.
+\providecommand{\figpath}{figures/}
+\begin{tikzpicture}
+\begin{axis}[
+  width=\linewidth, height=6.4cm,
+  xlabel={time since source killed (ms)}, ylabel={vitality $V$ at observer},
+  xmin=0, xmax=8000, ymin=0, ymax=1.06,
+  legend pos=north east, legend cell align=left, legend style={font=\scriptsize},
+  grid=both, grid style={black!8},
+  tick align=outside, tick pos=left,
+]
+% action threshold phi
+\addplot[draw=black!55, dashed, thick, mark=none]
+  table[x=t, y=phi] {\figpath retardation.dat};
+\addlegendentry{action threshold $\varphi$}
+% source-kill event marker (vertical at t=0)
+\addplot[draw=red!70!black, dotted, very thick, mark=none]
+  table[x=t, y=V] {\figpath retard_kill.dat};
+\addlegendentry{source killed}
+% retarded measurement band (p10-p90 over reps)
+\addplot[name path=rlo, draw=none, forget plot] table[x=t, y=Vlo] {\figpath retardation.dat};
+\addplot[name path=rhi, draw=none, forget plot] table[x=t, y=Vhi] {\figpath retardation.dat};
+\addplot[blue!60!black, opacity=0.16, forget plot] fill between[of=rlo and rhi];
+% ABLATION: the un-retarded recurrence (the model of the theorem) — locks at V=1
+\addplot[draw=red!75!black, very thick, mark=none]
+  table[x=t, y=Vablation] {\figpath retardation.dat};
+\addlegendentry{un-retarded recurrence ($\tau{=}0$): locks at $V{=}1$}
+% RETARDED: measured async decay (median over reps)
+\addplot[draw=blue!70!black, thick, mark=none, smooth]
+  table[x=t, y=Vretarded] {\figpath retardation.dat};
+\addlegendentry{retarded (measured, async): fades through $\varphi$}
+\end{axis}
+\end{tikzpicture}

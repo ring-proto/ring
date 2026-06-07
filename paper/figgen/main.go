@@ -32,6 +32,13 @@ func main() {
 	emitMultisource(*out)
 	emitReciprocal(*out)
 	emitMaxPrinciple(*out)
+	emitRetardation(*out)
+	emitSkew(*out)
+	emitDVRing(*out)
+	emitBlackhole(*out)
+	emitCongestion(*out)
+	emitPartition(*out)
+	emitLoops(*out)
 	fmt.Println("figgen: wrote tables to", *out)
 }
 

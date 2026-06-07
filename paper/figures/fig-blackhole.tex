@@ -1,0 +1,75 @@
+% The data-plane payoff, MEASURED from the async reference implementation (medians + bands over reps).
+% (a) Delivery-latency CDF by hop count on a converged 12x10 grid toward a corner dst. Nominal reaches
+%     1 (every packet delivered); the lossy fabric (4%/hop) plateaus at ~0.67 — the gap to 1 is the
+%     physically-LOST mass (Lost), distinct from any routing failure. (b) A steady stream is injected;
+%     at t0 the node directly above the dst — the chokepoint nearly all flow funnels through — is
+%     killed. Delivery collapses to ~0.09 for one reconvergence window as stale routes forward INTO the
+%     corpse (BlackholeDeadHop); the black-hole ratio mirror-spikes to ~0.90 (both are fractions of the
+%     injected packets, so they share one [0,1] axis and sum to ~1 in the stale window). Then vitality
+%     ages the dead route past φ, forwarding cleanly SEVERS (not a black hole), and the field
+%     reconverges around the gap: delivery snaps back to 1 and black-holes fall to zero. The band is the
+%     p25..p75 spread over reps — the async reconvergence instant jitters, so the recovery window
+%     straddles. Data: blackhole_cdf_{nominal,lossy}.dat, blackhole_ts.dat, blackhole_ts_kill.dat
+%     (figgen). Needs fillbetween.
+\providecommand{\figpath}{figures/}
+\begin{tikzpicture}
+
+% ---- (a) delivery-latency CDF -------------------------------------------------------------------
+\begin{axis}[
+  name=cdf,
+  width=6.2cm, height=4.4cm, scale only axis,
+  xlabel={delivery hops}, ylabel={CDF (delivered fraction)},
+  xmin=0, xmax=20, ymin=0, ymax=1.02,
+  legend pos=south east, legend cell align=left, legend style={font=\scriptsize},
+  grid=both, grid style={black!8}, tick align=outside, tick pos=left,
+  title={(a) delivery-latency CDF}, title style={font=\small},
+]
+\addplot[draw=blue!70!black, thick, const plot, mark=none]
+  table[x=hops, y=cdf] {\figpath blackhole_cdf_nominal.dat};
+\addlegendentry{nominal (lossless)}
+\addplot[draw=orange!85!black, thick, const plot, mark=none]
+  table[x=hops, y=cdf] {\figpath blackhole_cdf_lossy.dat};
+\addlegendentry{lossy ($4\%$/hop)}
+% the lost mass: the gap between the lossy plateau and 1.
+\addplot[draw=orange!60!black, dashed, mark=none]
+  coordinates {(0,0.670972) (20,0.670972)};
+\addlegendentry{lossy plateau (= delivered)}
+\node[anchor=south east, font=\scriptsize, orange!60!black] at (axis cs:20,0.69) {lost mass $\uparrow$};
+\end{axis}
+
+% ---- (b) delivery-ratio + black-hole-ratio timeseries across the kill ----------------------------
+% ONE [0,1] axis: delivery ratio and black-hole ratio (fraction of injected packets) are both rates,
+% so they share a frame — no fragile twin-axis alignment. During the stale window they sum to ~1:
+% almost every packet that is not delivered is black-holed (stale route INTO the corpse). Once
+% vitality severs, both fall to their floors as forwarding cleanly declines (Severed, off-figure).
+\begin{axis}[
+  name=ts,
+  at={(cdf.south east)}, anchor=south west, xshift=2.0cm,
+  width=6.2cm, height=4.4cm, scale only axis,
+  xlabel={time (ms)}, ylabel={fraction of injected packets},
+  xmin=0, xmax=1100, ymin=0, ymax=1.05,
+  legend style={at={(0.97,0.5)}, anchor=east, font=\scriptsize}, legend cell align=left,
+  grid=both, grid style={black!8}, tick align=outside, tick pos=left,
+  title={(b) delivery \& black-holes through a node death}, title style={font=\small},
+]
+% kill marker
+\addplot[draw=red!70!black, dotted, very thick, mark=none]
+  table[x=t, y=v] {\figpath blackhole_ts_kill.dat};
+\addlegendentry{node killed}
+% delivery-ratio band (p25..p75) + median
+\addplot[name path=drLo, draw=none, forget plot] table[x=t_ms, y=drLo] {\figpath blackhole_ts.dat};
+\addplot[name path=drHi, draw=none, forget plot] table[x=t_ms, y=drHi] {\figpath blackhole_ts.dat};
+\addplot[blue!60!black, opacity=0.15, forget plot] fill between[of=drLo and drHi];
+\addplot[draw=blue!70!black, thick, mark=*, mark options={scale=0.6}]
+  table[x=t_ms, y=deliveryRatio] {\figpath blackhole_ts.dat};
+\addlegendentry{delivery ratio (median)}
+% black-hole-ratio band (p25..p75) + median
+\addplot[name path=brLo, draw=none, forget plot] table[x=t_ms, y=bhrLo] {\figpath blackhole_ts.dat};
+\addplot[name path=brHi, draw=none, forget plot] table[x=t_ms, y=bhrHi] {\figpath blackhole_ts.dat};
+\addplot[red!60!black, opacity=0.12, forget plot] fill between[of=brLo and brHi];
+\addplot[draw=red!75!black, thick, dashed, mark=*, mark options={scale=0.6}]
+  table[x=t_ms, y=bhRatio] {\figpath blackhole_ts.dat};
+\addlegendentry{black-hole ratio (median)}
+\end{axis}
+
+\end{tikzpicture}

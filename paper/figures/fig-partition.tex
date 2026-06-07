@@ -1,0 +1,60 @@
+% Partition + recovery on a line (bridge edge CUT then RELINKED), MEASURED from the async reference
+% implementation as an ensemble over R=21 reps (delivery ratio = delivered/(reps·pkts), min/max band).
+% Top axis: data-plane delivery ratio collapses at the cut and recovers ~100 ms after the heal; the
+% black-hole fraction (stale field routing packets into the dead edge — a transient via-cycle) spikes
+% first, then hands off to correct SEVERANCE (routable→0, bottom axis) as vitality ages below φ — the
+% protocol declining to forward, NOT a black hole. Markers are the measured cut / heal / recovered
+% instants (partition_events.dat). Data: partition.dat. Needs fillbetween.
+\providecommand{\figpath}{figures/}
+\begin{tikzpicture}
+\begin{axis}[
+  name=top,
+  width=\linewidth, height=5.4cm,
+  xlabel={}, xticklabels={},
+  ylabel={fraction of packets},
+  xmin=-120, xmax=1200, ymin=-0.03, ymax=1.08,
+  ytick={0,0.25,0.5,0.75,1},
+  legend style={at={(0.42,0.55)}, anchor=west}, legend cell align=left, legend style={font=\scriptsize, fill=white, fill opacity=0.85, text opacity=1},
+  grid=both, grid style={black!8},
+  tick align=outside, tick pos=left,
+]
+% event markers (measured instants): cut at 0, heal at 700, recovered at 800
+\draw[red!70!black, dotted, very thick] (axis cs:0,-0.03) -- (axis cs:0,1.08);
+\draw[green!45!black, dotted, very thick] (axis cs:700,-0.03) -- (axis cs:700,1.08);
+\draw[green!45!black, dashed, thick] (axis cs:800,-0.03) -- (axis cs:800,1.08);
+\node[red!70!black, font=\scriptsize\bfseries, anchor=south, rotate=90] at (axis cs:0,0.18) {cut};
+\node[green!45!black, font=\scriptsize\bfseries, anchor=south, rotate=90] at (axis cs:700,0.18) {relink};
+\node[green!45!black, font=\scriptsize, anchor=west] at (axis cs:805,0.55) {recovered $+100$\,ms};
+% delivery min/max band over reps
+\addplot[name path=lo, draw=none, forget plot] table[x=t, y=delivLo] {\figpath partition.dat};
+\addplot[name path=hi, draw=none, forget plot] table[x=t, y=delivHi] {\figpath partition.dat};
+\addplot[blue!60!black, opacity=0.14] fill between[of=lo and hi];
+\addlegendentry{delivery band (reps)}
+% black-hole fraction (transient via-cycle into the dead edge)
+\addplot[draw=red!75!black, thick, mark=none] table[x=t, y=black] {\figpath partition.dat};
+\addlegendentry{black-holed (stale field)}
+% delivery ratio (ensemble mean)
+\addplot[draw=blue!70!black, very thick, mark=none] table[x=t, y=deliv] {\figpath partition.dat};
+\addlegendentry{delivered}
+\end{axis}
+\begin{axis}[
+  at={(top.south west)}, anchor=north west, yshift=-0.55cm,
+  width=\linewidth, height=3.2cm,
+  xlabel={time since cut (ms)}, ylabel={far side},
+  xmin=-120, xmax=1200, ymin=-0.12, ymax=1.12,
+  ytick={0,1}, yticklabels={severed, routable},
+  legend pos=south east, legend cell align=left, legend style={font=\scriptsize, fill=white, fill opacity=0.85, text opacity=1},
+  grid=both, grid style={black!8},
+  tick align=outside, tick pos=left,
+]
+\draw[red!70!black, dotted, very thick] (axis cs:0,-0.12) -- (axis cs:0,1.12);
+\draw[green!45!black, dotted, very thick] (axis cs:700,-0.12) -- (axis cs:700,1.12);
+\draw[green!45!black, dashed, thick] (axis cs:800,-0.12) -- (axis cs:800,1.12);
+% routable fraction across reps, as a step (control-plane state)
+\addplot[draw=black!80, very thick, const plot, mark=none] table[x=t, y=routable] {\figpath partition.dat};
+\addlegendentry{routable fraction}
+% severed fraction overlaid (correct declination, not a black hole)
+\addplot[draw=orange!80!black, thick, dashed, const plot, mark=none] table[x=t, y=sever] {\figpath partition.dat};
+\addlegendentry{severed (correct)}
+\end{axis}
+\end{tikzpicture}

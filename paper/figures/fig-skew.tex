@@ -1,0 +1,60 @@
+% [MEASURED, async] Skew-robustness sweep. Under unsynchronized clocks (each node a random per-node
+% offset of up to s Ticks, both signs, fresh pattern per rep), the two retardation modes diverge.
+% Clock-free hop-age ages V by a fixed one Tick per relay and never reads a cross-node clock, so it is
+% skew-invariant; measured cross-clock transit (recv_clock - emit_clock) needs NTP, and as the skew
+% dwarfs the true sub-Tick transit it over-ages V below phi (a live source that never lights up) or
+% under-ages it (a dead source that resurrects). TOP: fraction of reps that were CORRECT = (became
+% routable while live) AND (severed after kill), R=21 reps per point. BOTTOM: steady live vitality V at
+% the observer, median with a 10-90 percentile band. Data: skew.dat (figgen). Needs fillbetween.
+\providecommand{\figpath}{figures/}
+\begin{tikzpicture}
+% --- TOP: fraction correct vs skew ---
+\begin{axis}[
+  name=frac,
+  width=\linewidth, height=5.2cm,
+  ylabel={fraction correct},
+  xmin=0, xmax=16, ymin=0, ymax=1.05,
+  xtick={0,2,...,16}, xticklabels={},
+  ytick={0,0.25,0.5,0.75,1.0},
+  legend pos=south west, legend cell align=left, legend style={font=\scriptsize},
+  grid=both, grid style={black!8},
+  tick align=outside, tick pos=left,
+]
+\addplot[draw=blue!70!black, thick, mark=*, mark options={scale=0.85}]
+  table[x=skew, y=fracHop] {\figpath skew.dat};
+\addlegendentry{clock-free hop-age (HopAge)}
+\addplot[draw=red!75!black, thick, mark=square*, mark options={scale=0.85}]
+  table[x=skew, y=fracMeas] {\figpath skew.dat};
+\addlegendentry{measured transit (needs sync)}
+\end{axis}
+% --- BOTTOM: steady live vitality vs skew, median + 10-90 band ---
+\begin{axis}[
+  at={(frac.south west)}, anchor=north west, yshift=-0.85cm,
+  width=\linewidth, height=5.2cm,
+  xlabel={max per-node clock skew $s$ (Ticks)},
+  ylabel={steady live $V$ at observer},
+  xmin=0, xmax=16, ymin=0, ymax=1.0,
+  xtick={0,2,...,16},
+  legend pos=south west, legend cell align=left, legend style={font=\scriptsize},
+  grid=both, grid style={black!8},
+  tick align=outside, tick pos=left,
+]
+% action threshold phi
+\addplot[draw=black!55, dashed, thick, mark=none] coordinates {(0,0.5) (16,0.5)};
+\addlegendentry{action threshold $\varphi$}
+% clock-free band + median
+\addplot[name path=hopLo, draw=none, forget plot] table[x=skew, y=vLoHop] {\figpath skew.dat};
+\addplot[name path=hopHi, draw=none, forget plot] table[x=skew, y=vHiHop] {\figpath skew.dat};
+\addplot[blue!60!black, opacity=0.15, forget plot] fill between[of=hopLo and hopHi];
+\addplot[draw=blue!70!black, thick, mark=*, mark options={scale=0.8}]
+  table[x=skew, y=vMedHop] {\figpath skew.dat};
+\addlegendentry{clock-free $V$ (median)}
+% measured-transit band + median
+\addplot[name path=measLo, draw=none, forget plot] table[x=skew, y=vLoMeas] {\figpath skew.dat};
+\addplot[name path=measHi, draw=none, forget plot] table[x=skew, y=vHiMeas] {\figpath skew.dat};
+\addplot[red!55!black, opacity=0.15, forget plot] fill between[of=measLo and measHi];
+\addplot[draw=red!75!black, thick, mark=square*, mark options={scale=0.8}]
+  table[x=skew, y=vMedMeas] {\figpath skew.dat};
+\addlegendentry{measured $V$ (median)}
+\end{axis}
+\end{tikzpicture}

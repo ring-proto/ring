@@ -1,0 +1,40 @@
+% Loop-dissipativity under async churn (Thm 5.7, measured on the reference implementation). Read-only
+% over the live mesh: at each sample we snapshot every node's forwarding via toward a fixed source,
+% build the directed via-graph, and DFS-count its directed cycles — the transient forwarding loops.
+% The mesh is skewed (out-of-step clocks) and churned (interior killed, then revived, three rounds).
+% Transient via-cycles flicker into existence as the field re-grows and adjacent nodes momentarily
+% cross on stale advertisements, then DISSIPATE to 0 within a few rounds — they never persist (the
+% screened potential is a discrete subharmonic with no spurious interior maximum). Kills collapse the
+% field monotonically and raise no loop; only revives spark the spike. Measured: median+envelope over
+% R=21 async reps. Data: loops.dat (t mean p90 max maxlen), loops_kill/revive.dat (event instants).
+% Needs \usepgfplotslibrary{fillbetween}.
+\providecommand{\figpath}{figures/}
+\begin{tikzpicture}
+\begin{axis}[
+  width=\linewidth, height=6.2cm,
+  xlabel={time (ms)}, ylabel={transient via-cycles},
+  xmin=0, xmax=6200, ymin=0, ymax=5.4,
+  ytick={0,1,2,3,4,5},
+  legend pos=north west, legend cell align=left, legend style={font=\scriptsize},
+  grid=both, grid style={black!8},
+  tick align=outside, tick pos=left,
+]
+% disturbance markers: kills (grey, monotone collapse, no loop) and revives (red, the spike)
+\addplot[draw=black!45, dotted, very thick, mark=none]
+  table[x=t, y expr=\thisrow{y}*5.4] {\figpath loops_kill.dat};
+\addlegendentry{interior killed}
+\addplot[draw=red!70!black, dotted, very thick, mark=none]
+  table[x=t, y expr=\thisrow{y}*5.4] {\figpath loops_revive.dat};
+\addlegendentry{interior revived}
+% max envelope over reps (worst-case simultaneous loops), shaded to the axis
+\addplot[name path=maxenv, draw=blue!30, thick, mark=none, const plot]
+  table[x=t, y=max] {\figpath loops.dat};
+\addplot[name path=zero, draw=none, mark=none] table[x=t, y expr=0] {\figpath loops.dat};
+\addplot[blue!55, opacity=0.14] fill between[of=maxenv and zero];
+\addlegendentry{max over reps (envelope)}
+% mean cycle count per snapshot (the central statistic): spikes at each revive, decays to 0
+\addplot[draw=blue!75!black, very thick, mark=none]
+  table[x=t, y=mean] {\figpath loops.dat};
+\addlegendentry{mean cycles / snapshot}
+\end{axis}
+\end{tikzpicture}

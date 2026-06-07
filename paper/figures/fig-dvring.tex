@@ -1,0 +1,75 @@
+% The headline count-to-infinity contrast. The SAME line A–B–C–D–E with the destination at the far
+% end; the destination dies. Both routers obey the identical min-plus recurrence and diverge in what
+% they DO with the diverging metric.
+% TOP [measured, async]: RING on the line. The far observer's data-plane-read vitality V (left axis)
+% ages smoothly through the action threshold phi to 0 — graceful severance, no flap. Its reciprocal
+% U=1/V (right axis, log) genuinely DIVERGES — it is the count-to-infinity metric — but the read V
+% stays bounded in [0,1]. Median over reps; the shaded band is the 10–90% inter-rep spread.
+% BOTTOM [textbook, reproducible]: baseline.DV (no split-horizon, no poison reverse). After the kill
+% the far node's hop metric to the dead destination circulates upward, climbing toward the cap
+% ("infinity") instead of failing cleanly.
+% Data: ring.dat (t V U phi), ring_band.dat (t Vlo Vhi), ring_kill.dat; dv.dat (round metric Ucap),
+% dv_kill.dat. (figgen). Needs \usepgfplotslibrary{fillbetween}.
+\providecommand{\figpath}{figures/}
+\begin{tikzpicture}
+% ---- TOP: RING — V bounded (left) vs U=1/V diverging (right, log) ----
+\begin{axis}[
+  name=ring,
+  width=\linewidth, height=5.6cm,
+  xlabel={time since destination death (ms)},
+  ylabel={vitality $V$ at far observer},
+  axis y line*=left,
+  xmin=-1200, xmax=3000, ymin=0, ymax=1.05,
+  legend pos=north east, legend cell align=left, legend style={font=\scriptsize},
+  grid=both, grid style={black!8},
+  tick align=outside, tick pos=left,
+]
+% inter-rep 10–90% band
+\addplot[name path=vlo, draw=none, forget plot] table[x=t, y=Vlo] {\figpath ring_band.dat};
+\addplot[name path=vhi, draw=none, forget plot] table[x=t, y=Vhi] {\figpath ring_band.dat};
+\addplot[blue!55!black, opacity=0.16, forget plot] fill between[of=vlo and vhi];
+% action threshold
+\addplot[draw=black!55, dashed, thick, mark=none] coordinates {(-1200,0.5) (3000,0.5)};
+\addlegendentry{action threshold $\varphi$}
+% death event
+\addplot[draw=red!70!black, dotted, very thick, mark=none] table[x=t, y=V] {\figpath ring_kill.dat};
+\addlegendentry{destination killed}
+% measured V (median)
+\addplot[draw=blue!70!black, thick, mark=none, smooth] table[x=t, y=V] {\figpath ring.dat};
+\addlegendentry{$V$ (measured, bounded)}
+\end{axis}
+% right axis: U = 1/V, log scale — the divergence is real
+\begin{axis}[
+  width=\linewidth, height=5.6cm,
+  axis y line*=right, axis x line=none,
+  ymode=log, ymin=1, ymax=20,
+  ylabel={$U=1/V$ (counts to $\infty$)},
+  xmin=-1200, xmax=3000,
+  legend pos=north west, legend cell align=left, legend style={font=\scriptsize},
+]
+\addplot[draw=red!75!black, thick, dashdotted, mark=none] table[x=t, y=U] {\figpath ring.dat};
+\addlegendentry{$U=1/V$ (diverges)}
+\end{axis}
+% ---- BOTTOM: baseline DV — count to infinity ----
+\begin{axis}[
+  at={(ring.south west)}, anchor=north west, yshift=-1.35cm,
+  width=\linewidth, height=4.4cm,
+  xlabel={synchronous round}, ylabel={DV hop metric to dst},
+  xmin=0, xmax=17, ymin=0, ymax=18,
+  ytick={0,4,8,12,16}, xtick={0,2,...,16},
+  legend pos=south east, legend cell align=left, legend style={font=\scriptsize},
+  grid=both, grid style={black!8},
+  tick align=outside, tick pos=left,
+]
+% the cap ("infinity")
+\addplot[draw=black!55, dashed, thick, mark=none] table[x=round, y=Ucap] {\figpath dv.dat};
+\addlegendentry{cap (``$\infty$'')}
+% death event
+\addplot[draw=red!70!black, dotted, very thick, mark=none] table[x=round, y=metric] {\figpath dv_kill.dat};
+\addlegendentry{destination killed}
+% the climbing metric
+\addplot[draw=orange!80!black, thick, mark=*, mark options={scale=0.7}, const plot]
+  table[x=round, y=metric] {\figpath dv.dat};
+\addlegendentry{metric (counts to $\infty$)}
+\end{axis}
+\end{tikzpicture}
