@@ -7,6 +7,10 @@
 \usepackage[hidelinks]{hyperref}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{fillbetween}
+\providecommand{\figpath}{figures/}
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0.8\baselineskip}
@@ -25,7 +29,7 @@ Grounding the routing operator in M-matrix theory makes loop-freedom, black-hole
 
 Congestion enters the \emph{same} operator as a spatially-varying screening charge, so it reshapes the field without weakening any guarantee — and because the fields are exact, the load–charge loop is itself an exact map, which we prove globally ring-free under a loop-gain condition by a Lyapunov argument matched to the integrator. On the fabric both fields are \emph{exact} discrete objects — a linear M-matrix solve and a min-plus shortest path — computed by local asynchronous iteration with classical convergence; the elliptic screened-Poisson and the eikonal Hamilton–Jacobi equations are their \emph{shared continuum limits} (Appendix B), not the equations the network solves.
 
-We give the full proofs and report a deterministic simulation that validates convergence, loop-dissipativity under adversarial asynchrony, the $V(\delta)$ droop, the necessity of retardation, and congestion damping.
+We give the full proofs and validate every theorem on an asynchronous reference implementation — the $V(\delta)$ droop, clock-free robustness under skew, the necessity of retardation, graceful count-to-infinity against a textbook distance-vector baseline, data-plane delivery through node death and partition, loop-dissipativity under churn, and congestion damping with its stability basin.
 
 \end{abstract}
 
@@ -56,7 +60,7 @@ The result is a substrate with no timers, sequence numbers, tombstones, or hold-
 \item \textbf{Eventual non-trapping under chaotic asynchrony} (Theorem 5.7): transient forwarding cycles are confined to equilibrium level sets where the gradient current is vanishing, and the dominant current evacuates them — safe not only at rest but while churning.
 \item \textbf{Congestion as a screening charge, provably stable} (§5.7–§5.8): load enters the same operator as a spatially-varying diagonal, compatible with every guarantee because they hold for any $q_i\ge\kappa>0$; and the exact load–charge loop is globally ring-free under a loop-gain condition (Theorem 5.9), via a cubic Lyapunov matched to the non-overshoot integrator — replacing an empirical stability claim with a proof.
 \item \textbf{Space-time horizon alignment} (§8): tuning the aging rate so the temporal horizon matches the spatial reach makes per-node state self-bounding, $O\!\big(n\cdot\mathrm{Vol}(\lambda)\big)$.
-\item \textbf{Empirical validation} in a deterministic simulator (§9): convergence and unit stretch, loop-dissipativity under adversarial asynchrony, the measured $V(\delta)$ droop, the retardation lock and its cure, and congestion damping.
+\item \textbf{Empirical validation} on an asynchronous reference implementation (§9), as ensembles over reps: the measured $V(\delta)$ droop, clock-free skew-robustness, the retardation lock and its cure, graceful count-to-infinity against a textbook distance-vector baseline, data-plane delivery through node death and partition, loop-dissipativity under churn, and congestion damping with its stability basin.
 \end{enumerate}
 
 \section{Related work}
@@ -105,6 +109,8 @@ $\tau_{ij}\ge 1$ & transit time (in ticks) of the edge $i\!\to\!j$; one tick is 
 
 \textbf{The weighted Laplacian.} For $x:V\to\mathbb{R}$, $(\mathcal{L}_g x)_i = \sum_{j\in N(i)} g_{ij}(x_i-x_j) = G_i x_i - \sum_{j} g_{ij} x_j .$ $\mathcal{L}_g$ is symmetric positive-semidefinite with the constant vector in its kernel. Adding the diagonal $Q=\operatorname{diag}(q_i)\succ 0$ (since $q_i\ge\kappa>0$) makes $\mathcal{L}_g+Q$ symmetric, \textbf{strictly diagonally dominant} (row $i$ has diagonal $G_i+q_i$ against off-diagonal mass $G_i$), with non-positive off-diagonals — a symmetric M-matrix, hence positive-definite and inverse-positive (Berman and Plemmons 1994; Varga 1962). This is the single structural fact the routing proofs use.
 
+\textbf{Figure provenance.} Figures are tagged by how they were produced and the two are never blurred. \textsc{[exact]} figures are direct solves of the discrete operator — the field the math \emph{defines}, computed with no iteration or simulation. \textsc{[measured]} figures are ensembles from the asynchronous reference implementation (§7.1) — each node on its own cadence, no global round or shared clock — reported as a median with a 10--90\% inter-rep band over $R$ independent reps; this is what the protocol \emph{delivers}.
+
 \section{The routing field (space)}
 
 \subsection{The screened balance}
@@ -119,6 +125,13 @@ f^d_i \;\longleftarrow\; \frac{\sum_{j\in N(i)} g_{ij}\,f^d_j}{G_i + q_i},\qquad
 The destination pins $f^d_d=F_0$ and does not relax its own field. Clearing the denominator gives the operator form $(\mathcal{L}_g f^d)_i + q_i f^d_i = 0$. Each destination's field is independent and linear; a node maintains one scalar relaxation per known destination over a shared neighbour table.
 
 \emph{Non-negativity.} The pin is $F_0>0$ and (5.1) is a non-negative combination; the inverse-positive operator (§4) gives $f^{d\star}_i>0$ for every node in $d$'s connected component. Operational reach is where that positive field remains above a floor, not a hard hop count.
+
+\begin{figure}[tbp]
+\centering
+\input{figures/fig-multisource}
+\caption{\textsc{[exact]} A direct solve of the screened operator $(\mathcal{L}_g+Q)f=0$ on an irregular graph. Two pinned destinations raise two attracting basins with a watershed between them; a loaded sink (large $\mu$, locally short reach) bends the steepest-ascent streamlines around itself. This is the per-destination field the operator \emph{defines} — the object each node's relaxation (5.1) converges to.}
+\label{fig:multisource}
+\end{figure}
 
 \subsection{The screening charge and reach}
 
@@ -142,6 +155,13 @@ When the charge drifts (a node's $\mu_i$ moving under load) the field tracks a m
 
 The field's only maxima are the pinned destinations; the gradient has no interior sink.
 
+\begin{figure}[tbp]
+\centering
+\input{figures/fig-maxprinciple}
+\caption{\textsc{[exact]} The maximum principle (Theorem 5.4), by counterexample. \emph{Left:} the field the operator produces toward a corner source — every interior node sits strictly below its largest neighbour, so steepest-ascent arrows all escape to the source (no trap). \emph{Right:} a hand-drawn \emph{forbidden} configuration with a spurious interior maximum — every nearby arrow points into it, a black hole. The screened M-matrix can never produce the right panel (Theorems 5.4, 5.6); it is an impossibility, not a measurement.}
+\label{fig:maxprinciple}
+\end{figure}
+
 \subsection{Forwarding — the current split}
 
 A node forwards along the discrete current $J_{ij}=g_{ij}(f^d_j-f^d_i)$. The active next hops are the strictly-uphill neighbours, split in proportion to the current:
@@ -152,6 +172,13 @@ N^{\uparrow}(i)=\{\,j\in N(i):f^d_j>f^d_i\,\},\qquad w_{ij}=g_{ij}(f^d_j-f^d_i),
 \]
 
 Forwarding to all uphill neighbours is a current-proportional spread (a generalisation of equal-cost multipath); the dominant edge is the maximum-current hop. Conductance biases the split toward high-quality links without changing which neighbours qualify.
+
+\begin{figure}[tbp]
+\centering
+\input{figures/fig-gridflow}
+\caption{\textsc{[measured]} The forwarding map on a converged grid: at each node the dominant up-gradient hop (5.2), coloured by the log of the current $g_{ij}(f^d_j-f^d_i)$ it carries. Every arrow climbs to the single source basin — the active-edge relation is acyclic (Theorem 5.5) with no interior sink (Theorem 5.6).}
+\label{fig:gridflow}
+\end{figure}
 
 \subsection{Loop-freedom, black-hole-freedom, dissipativity}
 
@@ -215,6 +242,13 @@ A value arriving after $\tau\ge 1$ ticks in flight is evidence from $\tau$ ticks
 
 Retardation is a thermodynamic arrow: a liveness eddy cannot sustain itself without the continuous energy of a live source pin.
 
+\begin{figure}[tbp]
+\centering
+\input{figures/fig-retardation}
+\caption{\textsc{[measured]} Retardation is load-bearing (Theorem 6.2). A source is killed at $t=0$ and a far observer's vitality toward it is tracked. Removing the transit-aging — the un-retarded recurrence ($\tau=0$) — locks $V$ at the spurious resurrection fixed point $V=1$: a dead source the protocol can never let die. The retarded protocol (median $+$ 10--90\% band over reps) ages monotonically through the action threshold $\varphi$ to zero — a clean severance.}
+\label{fig:retardation}
+\end{figure}
+
 \subsection{The reciprocal transform: vitality is a proper-time eikonal}
 
 The destination pins $V^d_d=1$. Each node ages its held value and adopts the retarded value of any port offering a higher one:
@@ -241,6 +275,13 @@ This is the Bellman optimality equation for least-cost paths with strictly posit
 
 The exact object makes the light cone exact: $U^d_i-1=\alpha T^d_i$ is proper-time distance, so the iso-vitality level sets $\{V^d=\text{const}\}$ are the proper-time balls — the \emph{discrete} light cones — around $d$. A node whose freshest evidence is $T^d_i$ proper-time old reports exactly the confidence the decay law assigns to evidence of that age — no more.
 
+\begin{figure}[tbp]
+\centering
+\input{figures/fig-reciprocal}
+\caption{\textsc{[exact]} The reciprocal transform (Theorem 6.3). On a grid with a centre source the hop-distance $T$ is the exact min-plus shortest path. \emph{Top:} $V=1/(1+\alpha T)$ over the grid; its iso-$T$ level sets are the discrete light cones (proper-time balls), the red ring the $V=\varphi$ horizon. \emph{Bottom:} along a ray the Bellman metric $U=1+\alpha T$ climbs without bound (the count-to-infinity), while the data plane reads $V=1/U$, bounded in $[0,1]$ and fading through $\varphi$.}
+\label{fig:reciprocal}
+\end{figure}
+
 \subsection{Death and garbage collection}
 
 When the source stops asserting life, every held value ages toward $0$ (Lemma 6.1) and, by Theorem 6.2, nothing lifts it back. In reciprocal terms the source-pin disappears, so the Bellman recursion (6.2) has no finite boundary value and $U^d_i$ increases without bound — the \emph{count-to-infinity} of distance-vector routing. But the data plane reads $V=1/U$, so divergence in $U$ is convergence to zero in $V$:
@@ -251,9 +292,23 @@ U^d_i\to\infty \;\Longleftrightarrow\; V^d_i\to 0.
 
 The exact pathology that forces sequence numbers and tombstones into RIP and BGP is, under the reciprocal, the smooth monotone fade of a ghost — the destination garbage-collects itself with no discrete withdrawal, hold-down, or version counter.
 
+\begin{figure}[tbp]
+\centering
+\input{figures/fig-dvring}
+\caption{The count-to-infinity contrast on the same line $A$--$B$--$C$--$D$--$E$ after the far destination dies; both routers obey the identical min-plus recurrence and differ only in what they read off it. \emph{Top} \textsc{[measured]}: RING's far observer reads $V=1/U$ — graceful monotone severance through $\varphi$ to $0$ (median $+$ 10--90\% band), even though its reciprocal $U$ genuinely diverges. \emph{Bottom} \textsc{[textbook]}: a plain distance-vector router (no split-horizon, no poison reverse) circulates its hop metric upward toward the cap — the count-to-infinity RING converts into a bounded fade.}
+\label{fig:dvring}
+\end{figure}
+
 \subsection{The horizon}
 
 Acting only above a threshold $\varphi$ bounds the distance at which liveness can be asserted: $V^d(\delta)\ge\varphi\iff\delta\le R_V=(1/\varphi-1)/\alpha.$ $R_V$ is the radius within which the source's life is known to tolerance $\varphi$, set by the aging rate $\alpha$ — the rate at which stale evidence is discounted.
+
+\begin{figure}[tbp]
+\centering
+\input{figures/fig-gridV}
+\caption{\textsc{[measured]} The vitality field over a grid toward the corner source, with the marginal CDF of $V$ below. The far corner droops below $\varphi$ — field-\emph{known} but not vouched for: the vitality horizon $R_V$. On the CDF the $\varphi$ cut splits the horizon tail (left) from the actionable fraction $1-\mathrm{CDF}(\varphi)$ (right).}
+\label{fig:gridV}
+\end{figure}
 
 \section{Direction and confidence}
 
@@ -374,19 +429,72 @@ This is the payoff of unifying space and time: the protocol natively snuffs out 
 
 \section{Empirical validation}
 
-We validate the theory in a deterministic, reproducible discrete-event simulator (embedded, race-clean, byte-for-byte deterministic across runs). All figures below are from that harness.
+We validate the theory on the \emph{asynchronous} reference implementation: each node runs on its own cadence with no global round, barrier, or shared clock (§7.1), and every measured figure is an ensemble of $R$ independent reps reported as a median with a 10--90\% inter-rep band. The exact-solve figures of §§5--6 (\textsc{[exact]}) show what the operator \emph{defines}; the figures here (\textsc{[measured]}) show what the running protocol \emph{realizes}. This is a simulation study, not a deployment (§10); its purpose is to exercise each theorem on the live protocol.
 
-\begin{itemize}
-\item \textbf{Convergence and stretch.} The screened relaxation converges to unit path stretch on line and grid topologies; routing order settles in $\sim\!\text{diameter}$ rounds (magnitude settles in $\sim\!1/\kappa$ sweeps, the contraction rate of Lemma 5.1).
-\item \textbf{Loop-dissipativity under adversarial asynchrony.} With nodes frozen and woken to force mixed-step comparisons, transient via-cycles appear but every one dissipates within a few rounds; no cycle persists (Theorem 5.7), and a synchronization fence was measured to cost $\sim\!5\times$ delivery for no correctness benefit.
-\item \textbf{The $V(\delta)$ droop.} On a 6-hop line at $\alpha=0.04$, the live vitality measured $0.81$ at the far node, matching $1/(1+\alpha\delta)=1/(1.24)=0.806$ (Theorem 6.3).
-\item \textbf{Retardation is load-bearing.} Without the transit-aging of (6.1), a dead source's vitality locked at $1.0$ (the spurious fixed point of Theorem 6.2); adding retardation made it decay cleanly to zero.
-\item \textbf{Causal honesty beats distance-invariance operationally.} Against a distance-invariant (sequence-style) liveness, the retarded field severed a dead source earlier and dropped fewer packets into the corpse (e.g. $266$ vs $302$ black-holed packets on a small pod), with the advantage growing with distance — precisely the propagation-window optimism of §1.
-\item \textbf{Severance is timing-neutral as a policy.} Lifting severance from an in-operator term to a caller-side threshold changed no severance timing (both severed at the same round) and kept the direction field loop-free throughout the drain ($0$ forwarding loops over $120$ rounds).
-\item \textbf{Congestion damping (confirming Theorem 5.9).} Driving the screening charge from carried load at a loop gain below one damped a hotspot oscillation from amplitude $\sim\!890$ — an additive, numerator charge, the proportional ringing mode the non-overshoot integrator removes — to $\sim\!7$ (the denominator charge via the integrator, Lemma 5.8), with the field never going negative: the global ring-free behaviour the cubic Lyapunov predicts.
-\end{itemize}
+\textbf{Lifecycle and the $V(\delta)$ droop.} A far observer converges, the source is killed, and its vitality severs gracefully through $\varphi$ to zero (Fig.~\ref{fig:timeseries}). Along a line the steady live $V$ tracks the law $1/(1+\alpha\delta)$ (Theorem 6.3) but ages slightly \emph{faster} than unit-transit predicts (Fig.~\ref{fig:vdroop}): a route also dwells in the RIB between refreshes, spending extra proper time. The measured-below-theory gap is that dwell, not error — the protocol is honest about evidence it has held longer than one hop's transit.
 
-These results exercise every theorem in §§5–6. They are simulation evidence, not a deployment study (§10).
+\begin{figure}[tbp]
+\centering
+\input{figures/fig-timeseries}
+\caption{\textsc{[measured]} Vitality lifecycle at a far observer: the field converges, the source is killed (vertical mark), and the held vitality ages through the action threshold $\varphi$ to zero — graceful severance, no flap.}
+\label{fig:timeseries}
+\end{figure}
+
+\begin{figure}[tbp]
+\centering
+\input{figures/fig-vdroop}
+\caption{\textsc{[measured]} The $V(\delta)$ droop along a line: measured live vitality vs.\ hop distance tracks the unit-transit law $1/(1+\alpha\delta)$ (Theorem 6.3); the shaded gap is the protocol ageing $V$ slightly faster because a route also dwells in the RIB between refreshes — extra proper time, not error.}
+\label{fig:vdroop}
+\end{figure}
+
+\textbf{Clock-free robustness.} Under unsynchronized clocks — per-node offsets up to $s$ ticks, either sign — the two retardation modes diverge (Fig.~\ref{fig:skew}). The clock-free hop-age (one tick of staleness per relay, never a cross-node clock read) is skew-invariant: it becomes routable while the source is live and severs after it dies in 100\% of reps at every skew. Reading a measured cross-clock transit instead — the NTP-dependent variant — degrades as the skew dwarfs the true sub-tick transit, over-ageing a live source below $\varphi$ or under-ageing a dead one: correctness falls to $0.71$ at $s=14$ and $0.48$ at $s=16$. Causal honesty needs no synchronized clock.
+
+\begin{figure}[tbp]
+\centering
+\input{figures/fig-skew}
+\caption{\textsc{[measured]} Skew-robustness sweep ($R=21$ reps/point). \emph{Top:} fraction of reps that are correct (routable while live \emph{and} severed after death); clock-free hop-age holds at $1$ across all skew, measured cross-clock transit degrades as skew dwarfs the true sub-tick transit. \emph{Bottom:} steady live $V$ at the observer (median, 10--90\% band) — skew-invariant for hop-age, scattered for measured-transit.}
+\label{fig:skew}
+\end{figure}
+
+\textbf{Count-to-infinity, made graceful.} The headline contrast (Fig.~\ref{fig:dvring}, §6.4): on a dead line a textbook distance-vector metric counts upward to its cap while RING's reciprocal fade keeps the read $V$ bounded and monotone — the same diverging metric, read two ways. Retardation is what forbids the alternative pathology, the spurious resurrection that locks a dead source at $V=1$ (Fig.~\ref{fig:retardation}, §6.2).
+
+\textbf{Data-plane delivery through failure.} On a converged grid every packet is delivered; a lossy fabric (4\%/hop) plateaus at $0.67$ delivered, the gap to one being physically lost mass, not a routing failure (Fig.~\ref{fig:blackhole}a). When the chokepoint directly above the destination is killed, delivery collapses to $0.09$ for one reconvergence window as stale routes forward into the corpse, and the black-hole ratio mirror-spikes to $0.91$ (Fig.~\ref{fig:blackhole}b). Then vitality ages the dead route past $\varphi$: forwarding cleanly \emph{severs} rather than black-holing, the field reconverges around the gap, and delivery snaps back to one.
+
+\begin{figure}[tbp]
+\centering
+\input{figures/fig-blackhole}
+\caption{\textsc{[measured]} The data-plane payoff. (a) Delivery-latency CDF by hop count on a converged grid: nominal reaches $1$ (every packet delivered); the lossy fabric (4\%/hop) plateaus at $0.67$, the gap being physically lost mass, distinct from any routing failure. (b) A steady stream is injected and the chokepoint above the destination is killed at $t_0$: delivery collapses to $0.09$ and the black-hole ratio mirror-spikes to $0.91$ for one reconvergence window (they sum to $\approx\!1$ over the injected packets), then vitality severs the dead route and delivery snaps back to $1$.}
+\label{fig:blackhole}
+\end{figure}
+
+\textbf{Partition and recovery.} Cutting the only bridge on a line collapses delivery (Fig.~\ref{fig:partition}). The black-hole fraction spikes first — stale field routing packets into the dead edge — then hands off to correct severance as vitality ages below $\varphi$: the protocol declining to forward, not a black hole. After the heal the field reconverges and delivery recovers within $\sim\!100$~ms.
+
+\begin{figure}[tbp]
+\centering
+\input{figures/fig-partition}
+\caption{\textsc{[measured]} Partition and recovery on a line ($R=21$ reps). The bridge edge is cut, then relinked. Data-plane delivery (top) collapses at the cut and recovers $\sim\!100$~ms after the heal; the black-hole fraction spikes first, then hands off to correct severance (routable$\to 0$, bottom) as vitality ages below $\varphi$. Markers are the measured cut / heal / recovered instants.}
+\label{fig:partition}
+\end{figure}
+
+\textbf{Loop-dissipativity under churn.} Snapshotting the forwarding via-graph on a skewed, thrice-churned mesh and DFS-counting its directed cycles, transient via-cycles flicker as the field re-grows on stale advertisements — at most three at once, mean length $\approx 1.2$ hops — and every one dissipates to zero within a few rounds; none persists (Theorem 5.7, Fig.~\ref{fig:loops}). Kills collapse the field monotonically and raise no loop; only revives spark a transient.
+
+\begin{figure}[tbp]
+\centering
+\input{figures/fig-loops}
+\caption{\textsc{[measured]} Loop-dissipativity under async churn (Theorem 5.7). At each sample the forwarding via-graph is snapshotted and its directed cycles DFS-counted, read-only over a skewed, thrice-churned mesh. Transient via-cycles flicker as the field re-grows on stale advertisements (at most three at once, mean length $\approx 1.2$ hops) and dissipate to zero within a few rounds; none persists. Kills raise no loop — only revives spark a transient. Median $+$ envelope over $R=21$ reps.}
+\label{fig:loops}
+\end{figure}
+
+\textbf{Congestion damping and the stability basin.} On a barbell whose single bridge carries all cross-cluster current, the hub self-measures that load and glides its screening charge $\mu$ toward $c\,s$ with no injected stress (Fig.~\ref{fig:congestion}). At the operating couplings the charge climbs monotonically to equilibrium with no overshoot — the damped settle the non-overshoot integrator guarantees (Lemma 5.8) inside the basin. A wide coupling sweep then locates the basin boundary empirically: overshoot holds at the floor ($<\!0.3\%$ through $c=2$) and lifts off only once the gain amplifies the convergence load-spike, the median reaching $\sim\!13$--$18\%$ near $c=16$--$20$. The realized basin extends well past the conservative $\Gamma<1$ bound (Theorem 5.9, Appendix C).
+
+\begin{figure}[tbp]
+\centering
+\input{figures/fig-congestion}
+\caption{\textsc{[measured]} The self-driven load$\leftrightarrow$charge loop and its stability basin (Theorem 5.9) on a barbell bridge. \emph{Top:} the hub's charge trajectory at three couplings, each normalised to its own equilibrium $\mu_\infty$; every curve climbs monotonically to $1$ with no overshoot — the damped settle inside the basin (Lemma 5.8). \emph{Bottom:} a wide coupling sweep of the transient overshoot (median $+$ 10--90\% band); flat through the operating couplings (wide basin) and lifting into ringing only once the gain amplifies the convergence load-spike — the basin boundary made empirical.}
+\label{fig:congestion}
+\end{figure}
+
+Together these exercise every theorem of §§5--6 on the running protocol. The exact fields of §§5--6 are what the operator defines; the ensembles here are what an asynchronous, clock-free implementation delivers.
 
 \section{Discussion and limitations}
 
@@ -396,7 +504,7 @@ These results exercise every theorem in §§5–6. They are simulation evidence,
 
 \textbf{Scope.} Proposition 8.1 bounds state to a reach ball; genuinely sub-$\mathrm{Vol}(\lambda)$ routing (internet-scale diameters) needs hierarchy or landmarks layered above the field, which we do not address. The asynchronous shortest-path convergence of (6.2) is invoked, not reproved. The relationship between the discrete operators and the continuum PDEs — formerly stated by analogy — is made precise in Appendix B: on the fabric both fields are \emph{exact} discrete objects (a linear M-matrix solve and a min-plus shortest path), and the elliptic screened-Poisson and eikonal equations govern them only under a monotone–consistent–stable manifold-discretization limit (Barles and Souganidis 1991; Calder and Ettehad 2022) whose sampling hypotheses a logical fabric does not satisfy — and against which a naive graph distance is metrication-biased. We therefore do \emph{not} claim the deployed network is governed by a PDE, only that its discrete fields are the exact combinatorial objects those PDEs idealize.
 
-\textbf{Future work.} A real implementation with measured conductance and transit; hierarchical aggregation beyond the reach ball; and a sharp characterization of the congestion basin when the loop gain exceeds one (Theorem 5.9 gives a conservative sufficient bound; the exact threshold is open).
+\textbf{Future work.} A kernel data plane carrying the two scalars as the only per-destination state — programming the forwarding table over netlink and forwarding in eBPF, exposed as a CNI plugin for container fabrics — with conductance and transit measured from the link rather than assumed uniform; hierarchical aggregation beyond the reach ball; and a sharp characterization of the congestion basin when the loop gain exceeds one (Theorem 5.9 gives a conservative sufficient bound; the exact threshold is open).
 
 \section{Conclusion}
 
