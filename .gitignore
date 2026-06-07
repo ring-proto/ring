@@ -77,3 +77,4 @@ paper/figures/_pv*.png
 
 # macOS
 .DS_Store
+.claude/

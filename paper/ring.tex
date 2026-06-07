@@ -88,6 +88,9 @@ $g_{ij}>0$ & conductance of edge $\{i,j\}$, symmetric ($g_{ij}=g_{ji}$); uniform
 $G_i=\sum_{j\in N(i)}g_{ij}$ & total conductance incident on $i$ \\
 $\kappa>0$ & baseline screening (sets reach) \\
 $\mu_i\ge 0$ & local screening from load at $i$; the screening charge is $q_i=\kappa+\mu_i$ \\
+$s_i\ge 0$ & carried current at $i$ (its self-measured load): $\sum_{d}\max_{j\in N(i)}g_{ij}(f^d_j-f^d_i)$, the up-gradient flux it forwards, summed over destinations (§5.7) \\
+$c\ge 0$ & congestion coupling (crowding rate): the charge tracks $c\,s_i$; $c=0$ disables congestion (§5.7–§5.8) \\
+$r>0$ & glide rate of the non-overshoot integrator $\operatorname{reg}$ (§5.7) \\
 $F_0>0$ & the potential a destination pins for its own field \\
 $f^d_i\ge 0$ & routing potential at $i$ toward $d$ \\
 $V^d_i\in[0,1]$ & vitality (liveness confidence) at $i$ toward $d$ \\
@@ -164,9 +167,13 @@ Under \emph{continuing} forcing (load that keeps $\mu$ in motion) the correspond
 
 \subsection{Congestion as a screening charge}
 
-A node under load raises $\mu_i$, which by (5.1) flattens its potential — a shorter local reach (§5.2). The current split then steers flow around it: the loaded node advertises a depressed potential, so fewer neighbours find it uphill. Because $\mu_i\ge 0$ keeps $q_i\ge\kappa>0$, every guarantee of §5.3–§5.6 holds unchanged.
+Congestion is \emph{endogenous}: a node measures the current it carries and screens itself accordingly — no externally injected load, no separate congestion protocol. The carried current at $i$ is
+\[
+  s_i \;=\; \sum_{d}\,\max_{j\in N(i)}\, g_{ij}\big(f^d_j-f^d_i\big),
+\]
+the sum over destinations $d$ of the up-gradient flux it forwards on its chosen (max-flux) edge — the very quantity the current split of §5.6 already computes, read off the node's own field state each relax. A loaded node (large $s_i$) raises its screening charge $\mu_i$, which by (5.1) flattens its potential — a shorter local reach (§5.2). The current split then steers flow around it: it advertises a depressed potential, so fewer neighbours find it uphill. Because $\mu_i\ge 0$ keeps $q_i\ge\kappa>0$, every guarantee of §5.3–§5.6 holds unchanged.
 
-The load-to-charge map is closed through a \textbf{non-overshoot integrator}. With stress $s_i$ and coupling $c$, the charge glides $\mu_i\leftarrow\operatorname{reg}(\mu_i,\,c\,s_i,\,r)$, where $\operatorname{reg}(v,T,r)=T+(v-T)/(1+r\lvert v-T\rvert)$.
+The load-to-charge map is closed \emph{internally}, through a \textbf{non-overshoot integrator}: with coupling $c$ (the crowding rate) and glide rate $r$, the charge glides toward its own carried-current target, $\mu_i\leftarrow\operatorname{reg}(\mu_i,\,c\,s_i,\,r)$, where $\operatorname{reg}(v,T,r)=T+(v-T)/(1+r\lvert v-T\rvert)$. (A deployment may add an externally-offered demand to $s_i$; the base signal is self-measured.)
 
 \textbf{Lemma 5.8 (non-overshoot).} $\operatorname{reg}(v,T,r)$ lies strictly between $v$ and $T$ for $r>0$, $v\neq T$, reaching $T$ only in the limit. \emph{Proof.} The factor $1/(1+r\lvert v-T\rvert)\in(0,1)$ shrinks the gap $v-T$ without changing its sign. $\;\blacksquare$
 
