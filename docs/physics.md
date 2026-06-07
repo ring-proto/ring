@@ -5,9 +5,10 @@ fields obtained by local relaxation of its neighbours' values: a **routing poten
 gradient gives the next hop, and a **vitality** $V\in[0,1]$ that measures confidence the destination is
 live. Packets are forwarded up the potential; a route is acted on when its vitality clears a chosen policy
 threshold. Stale routing evidence ages by the same reciprocal proper-time law, applied to link resistance.
-Both fields are governed by the same screened, monotone, contraction dynamics, and every
-safety property below — loop-freedom, black-hole-freedom, convergence, bounded liveness — is a
-structural consequence of that operator, proved in place.
+Both fields are governed by the same local, monotone, screened iterative dynamics — the routing
+potential as a sup-norm contraction, the vitality as monotone dynamic programming (a Bellman /
+shortest-proper-time recurrence) — and every safety property below — loop-freedom, black-hole-freedom,
+convergence, bounded liveness — is a structural consequence of that operator, proved in place.
 
 ---
 
@@ -384,7 +385,8 @@ life is no longer vouched for — so the threshold is the consumer's to choose, 
 The routing guarantees follow from the screened M-matrix operator $\mathcal{L}_g+Q$ with charge
 $q_i\ge\kappa>0$ (diagonal dominance, reach, congestion, conductance); the vitality guarantees follow from
 the retarded monotone aging law (the Bellman shortest-proper-time equation). Both are local monotone
-contractions. The data plane is ascent of $f$; liveness is a threshold on $V$.
+iterations solved by asynchronous relaxation — the routing field a sup-norm contraction, the vitality
+field a monotone dynamic program. The data plane is ascent of $f$; liveness is a threshold on $V$.
 
 ---
 

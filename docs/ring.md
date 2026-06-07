@@ -12,8 +12,13 @@ is a **routing potential** $f$ solving a screened-Poisson equation $(\mathcal{L}
 destination; packets are forwarded up its gradient. The second is a **vitality** $V\in[0,1]$ measuring
 confidence that the destination is live; it is transported from the source and aged by the proper time
 its evidence has spent in flight. Grounding the routing operator in M-matrix theory makes loop-freedom,
-black-hole-freedom, and convergence (synchronous and chaotic-asynchronous) structural consequences of
-the discrete maximum principle and contraction, rather than topology-specific inductions. For liveness,
+black-hole-freedom on the converged field, and convergence (synchronous and chaotic-asynchronous) structural consequences of
+the discrete maximum principle and contraction, rather than topology-specific inductions. Transient
+loops and black-holes during reconvergence are unavoidable at the information-propagation limit — the
+price of forwarding on the freshest evidence rather than waiting for confirmation — so the guarantee is
+not their absence but their bounded, self-healing decay: the source-pinned field and proper-time aging
+laws drain every transient in time set by the aging rate, never count-to-infinity or a route held until
+a timer expires. For liveness,
 the reciprocal substitution $U=1/V$ linearizes the nonlinear retarded-max update into the min-plus
 Bellman/eikonal equation $U_i=\min_j\!\big(U_j+\alpha\tau_{ij}\big)$, whose solution $U_i=1+\alpha T_i$
 ($T_i$ the least accumulated transit time) gives the closed form $V_i=1/(1+\alpha T_i)$. This makes the
@@ -29,7 +34,7 @@ Lyapunov argument matched to the integrator. On the fabric both fields are *exac
 discrete objects — a linear M-matrix solve and a min-plus shortest path — computed by local asynchronous
 iteration with classical convergence; the elliptic screened-Poisson and the eikonal Hamilton–Jacobi
 equations are their *shared continuum limits* (Appendix B), not the equations the network solves. We give
-the full proofs and validate every theorem on an asynchronous reference implementation — the $V(\delta)$
+the full proofs and exercise every theorem's prediction on an asynchronous reference implementation — the $V(\delta)$
 droop, clock-free robustness under skew, the necessity of retardation, reciprocal link-aging around dead relays, graceful count-to-infinity against
 a textbook distance-vector baseline, data-plane delivery through node death and partition,
 loop-dissipativity under churn, and congestion damping that stays monotone-stable at every coupling.
@@ -55,6 +60,19 @@ therefore *overconfidence by construction*: it is achieved only by discarding th
 and it pays for that optimism with detection latency — the node keeps routing into a corpse for the
 duration of the propagation delay.
 
+Both problems share a root. At the information-propagation limit, the freshest evidence a distant node
+can hold is already stale by the transit delay, and acting on it immediately — which is exactly what
+maximises throughput under change — admits a window in which a packet can transiently loop or route into
+a corpse. No protocol forwarding at that limit can close the window: the only way to *forbid* the
+transient is to stop forwarding until the change is confirmed, paying it back as hold-down latency,
+diffusing acknowledgements, or sequence-number barriers. The honest goal is therefore not to eliminate
+transient loops and black-holes but to make them *bounded and self-healing* rather than *pathological and
+persistent* — the count-to-infinity, the loop held until a timer expires, the stale route retracted only
+by a tombstone. RING takes the bounded-and-self-healing option, and proves it: equilibrium loop- and
+black-hole-freedom say the rest state is clean, while the source-pinned field and the proper-time aging
+laws bound the approach to it — every transient drains in time set by the aging rate, with no timers,
+hold-downs, or global clock.
+
 RING resolves both by treating routing and liveness as two scalar **fields** governed by the same local,
 monotone iterative dynamics, and reading their guarantees off the underlying mathematics rather than off
 topology-specific arguments. Both fields are *exact* discrete objects on the fabric; the partial
@@ -63,7 +81,7 @@ shared continuum limits, formalized and scoped in Appendix B, not the equations 
 
 - **Direction** is the gradient of a *screened potential* $f$ — the exact solution of a discrete M-matrix
   system (continuum limit: the elliptic screened-Poisson equation) whose only maxima are the pinned
-  destinations (the discrete maximum principle), so greedy up-gradient forwarding cannot loop or
+  destinations (the discrete maximum principle), so greedy up-gradient forwarding on the converged field cannot loop or
   black-hole, for any topology and any reach. The field is bounded by its source pin, so there is no
   count-to-infinity to suppress; stale neighbour evidence is attenuated by aging its link conductance,
   not by thresholding the field.
@@ -732,7 +750,7 @@ J)<1$ and the saturated $\rho(c\,Ds)=1$, but still open.
 
 RING maps the heuristic machinery of distributed routing — metrics, timers, sequence numbers, tombstones,
 hold-downs — onto two *exact* discrete fields solved by local asynchronous iteration. Direction is the
-exact solution of a screened M-matrix system whose maximum principle makes forwarding loop- and
+exact solution of a screened M-matrix system whose maximum principle makes forwarding on the converged field loop- and
 black-hole-free; confidence is the exact proper-time shortest path whose reciprocal turns
 count-to-infinity into graceful death. The two share one screening charge that also absorbs congestion,
 and the elliptic and eikonal equations a physicist would write for them are their continuum shadows
@@ -757,9 +775,11 @@ is the pure Bellman value $1+\alpha T^d_i$. With *no* live source the self-term 
 $U\to\infty$ — the death dynamics of §6.4.
 
 **A.3 Asynchronous shortest-path convergence of (6.2).** The min-plus operator $T(U)_i=\min_j(U^d_j+
-\alpha\tau_{ij})$ is monotone and a (weighted) contraction toward the unique solution with non-negative
-weights and a fixed source value; the asynchronous convergence of such Bellman iterations under bounded
-communication and computation delay is classical (Bertsekas 1982; Bertsekas and Tsitsiklis 1989). The
+\alpha\tau_{ij})$ is **monotone** (order-preserving), with a unique finite fixed point given non-negative
+weights $\alpha\tau_{ij}\ge\alpha>0$ and a fixed source value; its asynchronous iteration is Bellman–Ford,
+converging by monotone dynamic programming — *not* by a sup-norm contraction, which is the routing field's
+mechanism (§5.3) — under bounded communication and computation delay (Bertsekas 1982; Bertsekas and
+Tsitsiklis 1989). The
 reciprocal $V=1/U$ inherits convergence by continuity away from $U=\infty$.
 
 **A.4 Loop-dissipativity round bound.** In Theorem 5.7, the convergence rate fixes the window: samples

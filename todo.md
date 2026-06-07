@@ -74,13 +74,16 @@ Bellman-Ford; rational reciprocal `1/x`, not the textbook `e^{-x}` Cole–Hopf.)
       alignment at `φ=0.2` would require `α≈0.894` and intentionally makes existing long-path tests
       non-actionable. Paper/docs now frame this as foundation (`β=α`) plus policy (`φ`) plus tuning
       (`α` relative to `κ`).
-- [ ] **Ablation flag?** — decide whether to keep a `NoLinkAge` toggle (parallel to `NoRetard`) for the
-      "link-aging is necessary" demonstration/figure.
-- [~] **Tidy** — promoted scratch test to `link_aging_test.go`; cleaned stale in-code freshness-window
-      comments; `EffConductance` stays for instrumentation through breadth/latency characterization.
+- [x] **Ablation flag** — decided yes: `NoLinkAge` toggle implemented (parallel to `NoRetard`,
+      `proto.go:62`, wired into `effCond`), and the `fig-linkaging` figure generator drives the
+      freeze-vs-aged contrast (`figgen/fig_linkaging.go`) while `link_aging_test.go` covers the
+      aged-reroute path across topologies.
+- [x] **Tidy** — promoted scratch test to `link_aging_test.go`; cleaned stale in-code freshness-window
+      comments (`Config.Fresh` removed; only "no Fresh window" framing remains); `EffConductance`
+      stays for instrumentation, and carried through the breadth/latency characterization tests.
       Keep language sharp: the field foundation has no load-bearing thresholds; thresholds are policy
       reads/pruning choices above the continuous fields.
-- [ ] **Checkpoint commit** the sim change once breadth-confirmed.
+- [x] **Checkpoint commit** the sim change once breadth-confirmed (commit 9b72432, link-aging + breadth tests).
 
 ---
 
@@ -104,12 +107,17 @@ Bellman-Ford; rational reciprocal `1/x`, not the textbook `e^{-x}` Cole–Hopf.)
       advertisement is a spurious pin the leak cannot drain; the aged conductance reroutes (the
       dead-relay analog of retardation / Thm 6.2). Possibly: convergence preserved (the sawtooth is
       bounded and source-refreshed).
-- [ ] **Figures:** "link-aging is necessary" (freeze pins onto corpses vs graceful reroute — parallel to
-      the retardation figure); the drain law matching `1/(1+α·k)`; the live-link sawtooth bound.
+- [x] **Figures:** `fig-linkaging` delivers all three — "link-aging is necessary" (the `NoLinkAge` freeze
+      = permanent black hole vs the aged reroute, parallel to the retardation figure, top panel); the
+      drain law matching `1/(1+α·k)` (bottom panel: measured `g_dead` vs the ideal overlay); and the
+      live-link sawtooth bound (bottom panel: the live link `b1` holding near `g`).
 - [x] **Notation / model:** add `g_eff`, staleness, the resistor-network/Kirchhoff framing; note β=α.
 - [ ] **Related work / provenance:** position vs Age-of-Information (`U += ατ` unbounded), AntNet
       (exponential heuristic), and the 1980s integer band-aids (split-horizon, poison-reverse, sequence
       numbers, DUAL/EIGRP); the novelty is the rational-reciprocal mapping to the parallel-resistance
       semiring.
-- [ ] **Keep the twins in lockstep** (`ring.tex` ↔ `docs/ring.md`) and re-run the consistency audit after.
-- [ ] Rebuild `ring.pdf`.
+- [x] **Keep the twins in lockstep** (`ring.tex` ↔ `docs/ring.md`) and re-run the consistency audit
+      (audit run twice — commits 9786741, b29de82; both files last touched in b29de82). docs/ring.md
+      carries §5.4 'Stale evidence as series resistance', the reciprocal-link-aging lemma, the
+      dead-relay-drain theorem, and the matching `g_eff` formula, all matching ring.tex.
+- [x] Rebuild `ring.pdf` (34 pp, 0 undefined refs).
