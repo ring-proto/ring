@@ -1,13 +1,15 @@
-% The self-driven load↔charge loop and its stability basin (Thm 5.9), measured on a barbell: two
-% cliques joined by ONE bridge edge, so all cross-cluster current funnels through the bridge hub, which
-% self-measures that load and glides its screening charge µ toward Crowd·load — no injected stress, the
-% loop is internal. TOP: the hub's charge trajectory at the three named couplings, normalised to each
-% curve's own equilibrium µ∞, so they overlay; every curve climbs monotonically to 1 with no overshoot
-% — the damped settle the non-overshoot integrator guarantees inside the basin. BOTTOM: a wide coupling
-% sweep of the transient overshoot (peak µ above µ∞, %), median + 10–90 band over reps; flat through the
-% named couplings (wide basin) and lifting off only once the gain amplifies the convergence load-spike —
-% the basin boundary made empirical. Measured from the reference implementation (median over reps, async).
-% Data: congestion_ts.dat, congestion_basin.dat. Needs \usepgfplotslibrary{fillbetween}.
+% The self-driven load↔charge loop (§5.7–§5.8) on a barbell: two cliques joined by ONE bridge edge, so
+% all cross-cluster current funnels through the bridge hub, which self-measures that load and glides its
+% screening charge µ toward Crowd·load (no injected stress, the loop is internal). Measured from the
+% async reference implementation. TWO panels:
+%   TOP — the hub's charge trajectory at the three named couplings, normalised to each curve's own
+%     equilibrium µ∞ so they overlay; every curve climbs monotonically to 1 with no overshoot — the
+%     damped settle the non-overshoot integrator guarantees (Lemma 5.8).
+%   BOTTOM — the realized loop gain Γ(c)=c·s'(µ*) at the operating point µ*=c·s(µ*), swept over coupling.
+%     The up-gradient load SATURATES (s'→0 as µ grows), so the realized gain (solid) stays far below the
+%     Γ=1 instability threshold at EVERY coupling and FALLS as c rises — there is no instability boundary.
+%     The naive gain a fixed light-load slope would predict (dashed) shoots past 1; saturation defeats it.
+% Data: congestion_ts.dat, congestion_gain.dat. Needs \usepgfplotslibrary{fillbetween} (loaded globally).
 \providecommand{\figpath}{figures/}
 \begin{tikzpicture}
 \begin{axis}[
@@ -24,40 +26,37 @@
 \addlegendentry{equilibrium $\mu_\infty$}
 \addplot[draw=blue!70!black, thick, mark=none, smooth]
   table[x=t, y=n0p3] {\figpath congestion_ts.dat};
-\addlegendentry{$c=0.3$ (deep in basin)}
+\addlegendentry{$c=0.3$}
 \addplot[draw=teal!70!black, thick, mark=none, smooth]
   table[x=t, y=n1] {\figpath congestion_ts.dat};
 \addlegendentry{$c=1.0$}
 \addplot[draw=orange!85!black, thick, mark=none, smooth]
   table[x=t, y=n2] {\figpath congestion_ts.dat};
-\addlegendentry{$c=2.0$}
+\addlegendentry{$c=2.0$ (monotone, no overshoot)}
 \end{axis}
 
 \begin{axis}[
   at={(ts.south west)}, anchor=north west, yshift=-1.55cm,
   width=\linewidth, height=5.0cm,
   xlabel={congestion coupling $c$ (\texttt{Crowd})},
-  ylabel={transient overshoot of $\mu$ (\%)},
-  xmode=log, log basis x=2,
-  xmin=0.25, xmax=28, ymin=-1, ymax=30,
+  ylabel={loop gain $\Gamma=c\,s'(\mu^\star)$},
+  xmode=log, log basis x=2, ymode=log,
+  xmin=0.13, xmax=40, ymin=0.0015, ymax=140,
   legend pos=north west, legend cell align=left, legend style={font=\scriptsize},
   grid=both, grid style={black!8},
   tick align=outside, tick pos=left,
 ]
-% 10–90 band over reps
-\addplot[name path=lo, draw=none, forget plot] table[x=crowd, y=over_lo] {\figpath congestion_basin.dat};
-\addplot[name path=hi, draw=none, forget plot] table[x=crowd, y=over_hi] {\figpath congestion_basin.dat};
-\addplot[red!55!black, opacity=0.18] fill between[of=lo and hi];
-\addlegendentry{10--90 band (reps)}
-% median overshoot
-\addplot[draw=red!75!black, thick, mark=*, mark options={scale=0.7}]
-  table[x=crowd, y=over_med] {\figpath congestion_basin.dat};
-\addlegendentry{median overshoot}
-% the named couplings sit in the flat, damped floor
-\addplot[only marks, mark=o, mark options={scale=1.6, draw=blue!70!black, line width=0.7pt}]
-  coordinates {(0.3,0.27) (1.0,0.04) (2.0,0.02)};
-\addlegendentry{named couplings (damped)}
-\node[anchor=south, font=\scriptsize, black!60] at (axis cs:0.7,2.0) {basin floor};
-\node[anchor=west, font=\scriptsize, red!60!black] at (axis cs:9,18) {ringing};
+% the Gamma=1 instability threshold
+\addplot[draw=black!55, dashed, thick, mark=none] coordinates {(0.13,1) (40,1)};
+\addlegendentry{instability threshold $\Gamma=1$}
+% naive: fixed light-load slope, ignores saturation -> shoots past 1
+\addplot[draw=red!70!black, dashed, thick, mark=none]
+  table[x=crowd, y=gamma_naive] {\figpath congestion_gain.dat};
+\addlegendentry{naive $c\,s'(\mu_{\mathrm{light}})$ — ignores saturation}
+% realized: measured at the operating point, saturating load -> falls away
+\addplot[draw=teal!65!black, very thick, mark=*, mark options={scale=0.55}]
+  table[x=crowd, y=gamma_real] {\figpath congestion_gain.dat};
+\addlegendentry{realized $c\,s'(\mu^\star)$ (measured)}
+\node[anchor=south, font=\scriptsize, teal!45!black] at (axis cs:1.6,0.0022) {no instability boundary at any $c$};
 \end{axis}
 \end{tikzpicture}

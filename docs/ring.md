@@ -30,7 +30,7 @@ equations are their *shared continuum limits* (Appendix B), not the equations th
 the full proofs and validate every theorem on an asynchronous reference implementation — the $V(\delta)$
 droop, clock-free robustness under skew, the necessity of retardation, graceful count-to-infinity against
 a textbook distance-vector baseline, data-plane delivery through node death and partition,
-loop-dissipativity under churn, and congestion damping with its stability basin.
+loop-dissipativity under churn, and congestion damping that stays monotone-stable at every coupling.
 
 ---
 
@@ -108,7 +108,7 @@ bent by load and aged by proper time, carrying packets down the steepest gradien
 8. **Empirical validation** on an asynchronous reference implementation (§9), as ensembles over reps:
    the measured $V(\delta)$ droop, clock-free skew-robustness, the retardation lock and its cure, graceful
    count-to-infinity against a textbook distance-vector baseline, data-plane delivery through node death
-   and partition, loop-dissipativity under churn, and congestion damping with its stability basin.
+   and partition, loop-dissipativity under churn, and congestion damping that stays monotone-stable at every coupling.
 
 ## 3. Related work
 
@@ -327,9 +327,13 @@ externally injected load, no separate congestion protocol. The carried current a
 $s_i=\sum_{d}\max_{j\in N(i)}g_{ij}(f^d_j-f^d_i)$, the sum over destinations $d$ of the up-gradient flux it
 forwards on its chosen (max-flux) edge — the very quantity the current split of §5.6 already computes, read
 off the node's own field state each relax. A loaded node (large $s_i$) raises its screening charge $\mu_i$,
-which by (5.1) flattens its potential — a shorter local reach (§5.2). The current split then steers flow
-around it: it advertises a depressed potential, so fewer neighbours find it uphill. Because $\mu_i\ge 0$
-keeps $q_i\ge\kappa>0$, every guarantee of §5.3–§5.6 holds unchanged.
+which by (5.1) flattens its potential — a shorter local reach (§5.2). It then advertises a depressed
+potential, so fewer neighbours route _into_ it and the offered demand reroutes around the screened node.
+The self-regulation is not a per-node negative feedback, though: deepening one's own sink _widens_ the
+up-gradient gap one measures, so the self-term $\partial s_i/\partial\mu_i\ge0$ (the symmetric M-matrix puts
+the resolvent's row maximum on the diagonal). Stability is therefore global — the symmetric-spectrum bound
+of §5.8 together with the saturation of $s$ — not each node shedding its own measured load (§9, Appendix
+C.5). Because $\mu_i\ge 0$ keeps $q_i\ge\kappa>0$, every guarantee of §5.3–§5.6 holds unchanged.
 
 The load-to-charge map is closed _internally_, through a **non-overshoot integrator**: with coupling $c$
 (the crowding rate) and glide rate $r$, the charge glides toward its own carried-current target,
@@ -369,12 +373,15 @@ If $\sup_\mu\lambda_{\max}\!\big(\operatorname{Sym}J(\mu)\big)<1$, then $V$ is a
 function and the congestion loop converges to its unique fixed point with no oscillation. *(Proof:
 Appendix C.)*
 
-The condition is implied by loop gain $\Gamma<1$ and holds *trivially* when the feedback is dissipative,
-$\operatorname{Sym}J\preceq0$. It gives a **design rule**: hold the load coupling $c$ (the crowding rate)
-below $1/\lVert Ds\rVert$ — finite because the field-sensitivity is itself the M-matrix,
-$\partial f/\partial\mu_i=-f_i(\mathcal{L}_g+Q)^{-1}e_i\le 0$ (§4) — and the loop is provably ring-free for
-any glide rate $r$. The bound is conservative: the discrete non-overshoot adds damping, so the realized
-stable basin extends past $\Gamma=1$ (§9, Appendix C).
+The condition is implied by loop gain $\Gamma<1$. It is _not_ the dissipative case
+$\operatorname{Sym}J\preceq0$: the self-term $\partial s_i/\partial\mu_i\ge0$ (§5.7) makes
+$\operatorname{Sym}J$ indefinite, so stability rests on the spectral bound, not on per-node negative
+feedback. It gives a **design rule**: hold the load coupling $c$ below $1/\lVert Ds\rVert$ — finite because
+$Ds$ is built from the bounded M-matrix field-sensitivity
+$\partial f/\partial\mu_i=-f_i(\mathcal{L}_g+Q)^{-1}e_i\le 0$ (§4), though $Ds$ itself is not sign-definite —
+and the loop is provably ring-free for any glide rate $r$. The bound is conservative, and in the deployed
+loop it is met with room to spare: the up-gradient load _saturates_, so the realized gain $c\,s'(\mu^\star)$
+stays far below $1$ at every coupling and the loop is monotone-stable throughout (§9, Appendix C.5).
 
 ## 6. The vitality field (proper time)
 
@@ -546,14 +553,17 @@ advertisements — at most three at once, mean length $\approx 1.2$ hops — and
 within a few rounds; none persists (Theorem 5.7). Kills collapse the field monotonically and raise no
 loop; only revives spark a transient.
 
-**Congestion damping and the stability basin.** On a barbell whose single bridge carries all cross-cluster
-current, the hub self-measures that load and glides its screening charge $\mu$ toward $c\,s$ with no
-injected stress. At the operating couplings the charge climbs monotonically to equilibrium with no
-overshoot — the damped settle the non-overshoot integrator guarantees (Lemma 5.8) inside the basin. A wide
-coupling sweep then locates the basin boundary empirically: overshoot holds at the floor ($<0.3\%$ through
-$c=2$) and lifts off only once the gain amplifies the convergence load-spike, the median reaching
-$\sim\!13$–$18\%$ near $c=16$–$20$. The realized basin extends well past the conservative $\Gamma<1$ bound
-(Theorem 5.9, Appendix C).
+**Congestion damping.** On a barbell whose single bridge carries all cross-cluster current, the hub
+self-measures that load and glides its screening charge $\mu$ toward $c\,s$ with no injected stress (top
+panel). The charge climbs monotonically to its equilibrium $\mu^\star=c\,s(\mu^\star)$ with no overshoot —
+the non-overshoot integrator's damped settle (Lemma 5.8). The loop stays monotone-stable at _every_
+coupling we tested (to $c=32$): the up-gradient load saturates ($s\to s_\infty\approx4$), so the realized
+loop gain $\Gamma(c)=c\,s'(\mu^\star)$ measured at the operating point holds far below the $\Gamma=1$
+threshold and _falls_ as $c$ rises ($0.40$ at the lightest load, $0.06$ at $c=1$, $0.002$ at $c=32$); a
+naive fixed light-load slope would predict the gain crossing $1$, but saturation defeats it. We observe no
+instability boundary — the energy bound $\lambda_{\max}(\operatorname{Sym}J)<1$ (Theorem 5.9) holds
+throughout, even though the per-node self-term $\partial s_i/\partial\mu_i\ge0$ is non-dissipative (§5.7,
+Appendix C.5).
 
 Together these exercise every theorem of §§5–6 on the running protocol. The exact fields of §§5–6 are what
 the operator defines; the ensembles here are what an asynchronous, clock-free implementation delivers.
@@ -564,8 +574,10 @@ the operator defines; the ensembles here are what an asynchronous, clock-free im
 result is $V=1/(1+\alpha T)$ with $T$ the least accumulated transit time, which is what a deployment with
 heterogeneous link delay realizes. Closed-loop congestion stability is *proven*, not empirical (Theorem
 5.9): because the fields are exact, the load–charge loop is an exact map, globally ring-free whenever the
-loop gain stays below one — and the only open quantitative question is the worst-case basin when the gain
-exceeds one (Appendix C gives a conservative sufficient bound; the realized basin is larger).
+loop gain stays below one. In the deployed loop that bound is met with room to spare — the up-gradient load
+saturates, so the realized gain stays far below one at every coupling and the loop is monotone-stable
+throughout (§9, Appendix C.5) — while a closed-form threshold for the multi-node map when the gain exceeds
+one remains open.
 
 **Control-plane cost.** Liveness requires the source's assertion to be refreshed; a per-tick keepalive of
 the live working set is the simplest realization and is not silent at rest. It can be slowed to a lazy
@@ -586,8 +598,9 @@ discrete fields are the exact combinatorial objects those PDEs idealize.
 **Future work.** A kernel data plane carrying the two scalars as the only per-destination state —
 programming the forwarding table over netlink and forwarding in eBPF, exposed as a CNI plugin for
 container fabrics — with conductance and transit measured from the link rather than assumed uniform;
-hierarchical aggregation beyond the reach ball; and a sharp characterization of the congestion basin when
-the loop gain exceeds one (Theorem 5.9 gives a conservative sufficient bound; the exact threshold is open).
+hierarchical aggregation beyond the reach ball; and a closed-form threshold for the multi-node congestion
+loop beyond gain one — bracketed in Appendix C.5 between the conservative $\lambda_{\max}(\operatorname{Sym}
+J)<1$ and the saturated $\rho(c\,Ds)=1$, but still open.
 
 ## 11. Conclusion
 
@@ -739,6 +752,32 @@ Sym}J)\Psi$, and the non-overshoot factor $1/(1+r|\delta_i|)\preceq I$ adds stri
 realized stable region extends past $\lambda_{\max}(\operatorname{Sym}J)=1$ (numerically, monotone decay of
 $V$ persists to $\approx1.3$, divergence only near $2$). Thus the gain condition is a *conservative*
 sufficient bound for the deployed protocol. $\;\blacksquare$
+
+**C.5 The multi-node map, and why the threshold is not a Perron root.** The per-node analysis of C.3
+generalises to an exact multi-node residual map. With $J=c\,Ds$, $\delta=\mu-c\,s(\mu)$, and
+$A=\operatorname{diag}\!\big(r|\delta_i|/(1+r|\delta_i|)\big)$ (so $A_{ii}\in[0,1)$, $A\to0$ at the fixed
+point, $A\to I$ at large displacement), one non-overshoot step is $\mu^+=\mu-A\delta$ exactly, and carrying
+the load to first order (a mean-value $J$) gives
+$$
+\delta^+=\big[I-(I-J)A\big]\,\delta .
+$$
+At the fixed point $A\to0$, so the Jacobian is exactly $I$ (C.2): the loop is _marginal_ at small signal
+for every gain, and any instability is finite-amplitude. In the saturated limit $A\to I$ the map is
+$\delta^+=J\delta$, so large-displacement behaviour is governed by the spectral radius $\rho(J)=\rho(c\,Ds)$;
+we measure $\rho(c\,Ds)<1$ at every operating point, so there is no large-amplitude blow-up either.
+
+One might hope for a sharp _Perron_ threshold, but $Ds$ is _not_ sign-definite. Its diagonal is
+$\partial s_i/\partial\mu_i\ge0$ — structurally, because the symmetric M-matrix resolvent
+$(\mathcal{L}_g+Q)^{-1}$ carries its row maximum on the diagonal, so screening a node sinks its own potential
+and _widens_ the up-gradient gap it measures — while its off-diagonal is genuinely mixed-sign (positive
+toward the source, negative toward the destination). Hence $-c\,Ds$ has no nonnegative dominant eigenvector
+and no Perron root; the binding quantity is the symmetric spectrum $\lambda_{\max}(\operatorname{Sym}J)$ of
+Theorem 5.9, which differs from $\rho(J)$ and is the energy-Lyapunov threshold. What keeps the deployed loop
+inside it is not a sign condition but **saturation**: the operating point $\mu^\star=c\,s(\mu^\star)$ sits
+where $s'$ has collapsed (the load tends to $s_\infty$), so the realized gain $c\,s'(\mu^\star)$ stays far
+below $1$ at every coupling and falls as $c$ grows (§9). The exact global threshold of the multi-node map —
+bracketed below by $\lambda_{\max}(\operatorname{Sym}J)<1$ and above by the saturated $\rho(J)=1$, and itself
+glide-rate dependent — remains open; we claim no closed form. $\;\blacksquare$
 
 ---
 

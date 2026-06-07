@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,26 +12,29 @@ import (
 	"github.com/ring-proto/ring/proto"
 )
 
-// emitCongestion measures the self-driven load↔charge loop (§5.7–5.8, the stability basin of Thm 5.9)
-// on a barbell: two fully-connected clusters joined by ONE bridge edge, so every cross-cluster route
-// funnels through the bridge hub. The hub self-measures that carried current (Load()) and glides its
-// screening charge µ (Charge()) toward Crowd·Load via the non-overshoot integrator reg() — no injected
-// stress, the loop is entirely internal. Two products, both averaged over reps (the sim is async/real-
-// time, so a single run is noisy):
+// emitCongestion measures the self-driven load↔charge loop (§5.7–5.8) on a barbell: two fully-connected
+// clusters joined by ONE bridge edge, so every cross-cluster route funnels through the bridge hub. The
+// hub self-measures the up-gradient current it forwards (Load()) and glides its screening charge µ
+// (Charge()) toward Crowd·Load via the non-overshoot integrator reg() — no injected stress, the loop is
+// entirely internal. Two products, both measured from the async reference implementation:
 //
 //   - congestion_ts.dat: the bottleneck's charge trajectory under the three named couplings
-//     (Crowd = 0.3, 1.0, 2.0), as raw µ and as µ normalised to its own equilibrium µ∞. All three are
-//     INSIDE the basin: the charge glides monotonically to its fixed point with no overshoot — the
-//     damped settle the integrator guarantees. Columns: t mu0p3 mu1 mu2 n0p3 n1 n2.
-//   - congestion_basin.dat: a wide coupling sweep of the transient overshoot (peak µ above equilibrium,
-//     %), median with a 10–90 band over reps. It stays ~0 across the named couplings (the wide basin)
-//     and climbs only once the gain is large enough to amplify the convergence load-spike — the basin
-//     boundary made empirical. Columns: crowd over_med over_lo over_hi.
+//     (Crowd = 0.3, 1.0, 2.0), raw µ and µ normalised to its own equilibrium µ∞. The charge glides
+//     monotonically to its fixed point with no overshoot — the damped settle the integrator guarantees.
+//     Columns: t mu0p3 mu1 mu2 n0p3 n1 n2.
+//   - congestion_gain.dat: the realized loop gain Γ(c)=c·s'(µ*) at the operating point µ*=c·s(µ*), swept
+//     over coupling c. Because the up-gradient load SATURATES (s'→0 as µ grows, the resolvent flattens),
+//     the realized gain stays far below the Γ=1 instability threshold at EVERY coupling — the loop is
+//     monotone-stable everywhere, with no basin boundary. We also emit the "naive" gain c·s'(µ_light) a
+//     fixed light-load slope would predict (which crosses 1), to show why saturation defeats it.
+//     Columns: crowd gamma_real gamma_naive mu_star s_star.
 //
-// Measured from the reference implementation; never a single run.
+// NOTE on the diagonal sign (§5.7): the self-term ∂s_i/∂µ_i is NON-negative (raising µ_i sinks f_i and
+// widens the up-gradient gap the node measures), i.e. the self-feedback is positive, not dissipative.
+// It does not run away because s saturates: c·s'(µ*) stays < 1 at every coupling (this figure).
 func emitCongestion(dir string) {
 	emitCongestionTimeseries(filepath.Join(dir, "congestion_ts.dat"))
-	emitCongestionBasin(filepath.Join(dir, "congestion_basin.dat"))
+	emitCongestionGain(filepath.Join(dir, "congestion_gain.dat"))
 }
 
 // barbell wires two K-cliques joined by a single bridge edge a0—b0 and returns the bridge hub a0.
@@ -132,41 +136,95 @@ func emitCongestionTimeseries(path string) {
 	write(path, b.String())
 }
 
-// emitCongestionBasin sweeps the congestion coupling and reports the transient overshoot of the hub's
-// charge — the percentage by which the peak µ exceeds its equilibrium µ∞ — as median + a 10–90 band
-// over reps. Overshoot ~0 means the self-driven loop glided in cleanly (inside the basin); a rising
-// overshoot is the loop ringing as the gain amplifies the load-spike during field convergence. The
-// named couplings (0.3, 1.0, 2.0) sit in the flat, well-damped floor; the basin boundary is where the
-// curve lifts off.
-func emitCongestionBasin(path string) {
-	const reps = 15
-	crowds := []float64{0.3, 0.6, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 16.0, 20.0, 24.0}
+// settleEndogenous runs one barbell at the given coupling to steady state (endogenous loop, no stress)
+// and returns the hub's settled charge µ* and carried load s*, each averaged over a tail window and over
+// `reps` independent runs (the async sim is jittery). At the fixed point µ* = c·s* (the reg() target).
+func settleEndogenous(crowd float64, reps int) (muStar, sStar float64) {
+	for r := 0; r < reps; r++ {
+		cfg := proto.DefaultConfig()
+		cfg.Crowd = crowd
+		cfg.Tick = 20 * time.Millisecond
+		m := proto.NewMesh(cfg)
+		hub := barbell(m, 4)
+		m.Start()
+		time.Sleep(2500 * time.Millisecond) // let the cold-start transient pass and µ settle
+		var mu, s float64
+		const navg = 16
+		for k := 0; k < navg; k++ {
+			mu += m.Node(hub).Charge()
+			s += m.Node(hub).Load()
+			time.Sleep(50 * time.Millisecond)
+		}
+		m.Stop()
+		muStar += mu / navg
+		sStar += s / navg
+	}
+	return muStar / float64(reps), sStar / float64(reps)
+}
+
+// fitSaturating fits s(µ) ≈ sInf − A/(µ+B) (A>0: increasing, saturating; s'(µ)=A/(µ+B)²>0 decreasing)
+// by a grid search over B with a closed-form linear least-squares for (sInf, A) at each B. This smooths
+// the jittery measured (µ*,s*) samples so the derivative s'(µ) is stable.
+func fitSaturating(mu, s []float64) (sInf, A, B float64) {
+	bestErr := math.Inf(1)
+	for Bc := 0.05; Bc <= 40; Bc *= 1.12 {
+		var s11, s12, s22, t1, t2 float64
+		for i := range mu {
+			x1 := 1.0
+			x2 := -1.0 / (mu[i] + Bc)
+			s11 += x1 * x1
+			s12 += x1 * x2
+			s22 += x2 * x2
+			t1 += x1 * s[i]
+			t2 += x2 * s[i]
+		}
+		det := s11*s22 - s12*s12
+		if math.Abs(det) < 1e-12 {
+			continue
+		}
+		si := (t1*s22 - t2*s12) / det
+		a := (s11*t2 - s12*t1) / det
+		var err float64
+		for i := range mu {
+			d := (si - a/(mu[i]+Bc)) - s[i]
+			err += d * d
+		}
+		if err < bestErr {
+			bestErr, sInf, A, B = err, si, a, Bc
+		}
+	}
+	return
+}
+
+// emitCongestionGain sweeps the coupling c, measures the operating point (µ*, s*) of the endogenous loop
+// at each, fits the saturating load response s(µ), and reports the realized loop gain Γ(c)=c·s'(µ*). The
+// gain stays far below the Γ=1 instability threshold at every coupling because s saturates — the honest
+// replacement for the old "overshoot basin" panel, which measured a cold-start field-convergence spike,
+// not a stability boundary. We also emit the naive gain c·s'(µ_light) a fixed light-load slope predicts.
+func emitCongestionGain(path string) {
+	const reps = 6
+	crowds := []float64{0.15, 0.2, 0.3, 0.5, 0.7, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 16.0, 24.0, 32.0}
+
+	mu := make([]float64, len(crowds))
+	s := make([]float64, len(crowds))
+	for i, c := range crowds {
+		mu[i], s[i] = settleEndogenous(c, reps)
+		fmt.Fprintf(os.Stderr, "congestion gain: c=%.2f µ*=%.3f s*=%.4f (µ*/c=%.4f)\n",
+			c, mu[i], s[i], mu[i]/c)
+	}
+
+	sInf, A, B := fitSaturating(mu, s)
+	fmt.Fprintf(os.Stderr, "congestion gain: fit s(µ)=%.4f − %.4f/(µ+%.4f)\n", sInf, A, B)
+	sprime := func(m float64) float64 { return A / ((m + B) * (m + B)) }
+	spLight := sprime(mu[0]) // the lightest-load slope — the "naive" fixed slope
 
 	var b strings.Builder
-	b.WriteString("crowd over_med over_lo over_hi\n")
-	for _, crowd := range crowds {
-		overs := make([]float64, reps)
-		for r := 0; r < reps; r++ {
-			// 2.5 s, sampled fine (5 ms) so the early peak is captured
-			tr := chargeTrace(crowd, 500, 5*time.Millisecond)
-			eq, n := 0.0, 0
-			for i := len(tr) * 3 / 4; i < len(tr); i++ {
-				eq += tr[i]
-				n++
-			}
-			eq /= float64(n)
-			peak := 0.0
-			for _, v := range tr {
-				if v > peak {
-					peak = v
-				}
-			}
-			overs[r] = 100 * (peak - eq) / (eq + 1e-9)
-		}
-		md, lo, hi := median(overs), percentile(overs, 0.1), percentile(overs, 0.9)
-		fmt.Fprintf(&b, "%.2f %.4f %.4f %.4f\n", crowd, md, lo, hi)
-		fmt.Fprintf(os.Stderr, "congestion basin: Crowd=%.1f overshoot med=%.2f%% [%.2f,%.2f]\n",
-			crowd, md, lo, hi)
+	b.WriteString("crowd gamma_real gamma_naive mu_star s_star\n")
+	for i, c := range crowds {
+		gr := c * sprime(mu[i])
+		gn := c * spLight
+		fmt.Fprintf(&b, "%.3f %.5f %.5f %.4f %.5f\n", c, gr, gn, mu[i], s[i])
+		fmt.Fprintf(os.Stderr, "congestion gain: c=%.2f Γ_real=%.4f Γ_naive=%.4f\n", c, gr, gn)
 	}
 	write(path, b.String())
 }
