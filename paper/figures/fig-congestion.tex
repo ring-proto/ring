@@ -39,7 +39,7 @@
   at={(ts.south west)}, anchor=north west, yshift=-1.55cm,
   width=\linewidth, height=5.0cm,
   xlabel={congestion coupling $c$ (\texttt{Crowd})},
-  ylabel={loop gain $\Gamma=c\,s'(\mu^\star)$},
+  ylabel={loop gain $\gamma_{\mathrm{loop}}=c\,s'(\mu^\star)$},
   xmode=log, log basis x=2, ymode=log,
   xmin=0.13, xmax=40, ymin=0.0015, ymax=140,
   legend pos=north west, legend cell align=left, legend style={font=\scriptsize},
@@ -48,7 +48,7 @@
 ]
 % the Gamma=1 instability threshold
 \addplot[draw=black!55, dashed, thick, mark=none] coordinates {(0.13,1) (40,1)};
-\addlegendentry{instability threshold $\Gamma=1$}
+\addlegendentry{instability threshold $\gamma_{\mathrm{loop}}=1$}
 % naive: fixed light-load slope, ignores saturation -> shoots past 1
 \addplot[draw=red!70!black, dashed, thick, mark=none]
   table[x=crowd, y=gamma_naive] {\figpath congestion_gain.dat};

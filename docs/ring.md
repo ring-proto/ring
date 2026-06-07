@@ -95,9 +95,11 @@ bent by load and aged by proper time, carrying packets down the steepest gradien
 4. **A necessity theorem for retardation** (Theorem 6.2): without aging incoming evidence by its transit,
    mutual exchange admits a spurious self-sustaining fixed point (a "resurrected" dead source);
    retardation removes it, giving a thermodynamic arrow that forbids liveness without a live source.
-5. **Eventual non-trapping under chaotic asynchrony** (Theorem 5.7): transient forwarding cycles are
-   confined to equilibrium level sets where the gradient current is vanishing, and the dominant current
-   evacuates them — safe not only at rest but while churning.
+5. **Eventual non-trapping under chaotic asynchrony** (Theorem 5.7): once forcing stops, transient
+   forwarding cycles are confined to equilibrium level sets where the gradient current is vanishing, and
+   the dominant current evacuates them — exact acyclicity at rest; under continuing churn the corresponding
+   property is a bounded non-equilibrium steady state confined to vanishing-current level sets (§5.6,
+   validated in §9).
 6. **Congestion as a screening charge, provably stable** (§5.7–§5.8): load enters the same operator as a
    spatially-varying diagonal, compatible with every guarantee because they hold for any $q_i\ge\kappa>0$;
    and the exact load–charge loop is globally ring-free under a loop-gain condition (Theorem 5.9), via a
@@ -193,6 +195,7 @@ distance-droop as the detection signal.
 | $\alpha>0$ | vitality aging rate |
 | $\varphi\in(0,1)$ | vitality threshold for action |
 | $\tau_{ij}\ge 1$ | transit time (in ticks) of the edge $i\!\to\!j$; one tick is one relaxation period |
+| $\delta\ge 0$ | hop-distance to a source (causal distance in ticks): the unit-transit value of $T^d_i$, as in $V^d(\delta)=1/(1+\alpha\delta)$ (§6.3) |
 
 **Adjacency by echo.** $j\in N(i)$ only if $i$ hears $j$ *and* $j$'s advertisement names $i$. A one-way
 link carries no flow and contributes nothing to $\mathcal{L}_g$.
@@ -325,7 +328,7 @@ current, rather than exact acyclicity.
 Congestion is _endogenous_: a node measures the current it carries and screens itself accordingly — no
 externally injected load, no separate congestion protocol. The carried current at $i$ is
 $s_i=\sum_{d}\max_{j\in N(i)}g_{ij}(f^d_j-f^d_i)$, the sum over destinations $d$ of the up-gradient flux it
-forwards on its chosen (max-flux) edge — the very quantity the current split of §5.6 already computes, read
+forwards on its chosen (max-flux) edge — the very quantity the current split of §5.5 already computes, read
 off the node's own field state each relax. A loaded node (large $s_i$) raises its screening charge $\mu_i$,
 which by (5.1) flattens its potential — a shorter local reach (§5.2). It then advertises a depressed
 potential, so fewer neighbours route _into_ it and the offered demand reroutes around the screened node.
@@ -338,12 +341,12 @@ C.5). Because $\mu_i\ge 0$ keeps $q_i\ge\kappa>0$, every guarantee of §5.3–§
 The load-to-charge map is closed _internally_, through a **non-overshoot integrator**: with coupling $c$
 (the crowding rate) and glide rate $r$, the charge glides toward its own carried-current target,
 $\mu_i\leftarrow\operatorname{reg}(\mu_i,\,c\,s_i,\,r)$, where
-$\operatorname{reg}(v,T,r)=T+(v-T)/(1+r\lvert v-T\rvert)$. (A deployment may add an externally-offered
-demand to $s_i$; the base signal is self-measured.)
+$\operatorname{reg}(v,\theta,r)=\theta+(v-\theta)/(1+r\lvert v-\theta\rvert)$ ($\theta$ the target). (A
+deployment may add an externally-offered demand to $s_i$; the base signal is self-measured.)
 
-**Lemma 5.8 (non-overshoot).** $\operatorname{reg}(v,T,r)$ lies strictly between $v$ and $T$ for $r>0$,
-$v\neq T$, reaching $T$ only in the limit.
-*Proof.* The factor $1/(1+r\lvert v-T\rvert)\in(0,1)$ shrinks the gap $v-T$ without changing its sign. $\;\blacksquare$
+**Lemma 5.8 (non-overshoot).** $\operatorname{reg}(v,\theta,r)$ lies strictly between $v$ and $\theta$ for
+$r>0$, $v\neq\theta$, reaching $\theta$ only in the limit.
+*Proof.* The factor $1/(1+r\lvert v-\theta\rvert)\in(0,1)$ shrinks the gap $v-\theta$ without changing its sign. $\;\blacksquare$
 
 The charge update is therefore itself non-overshooting and bounded — it removes the explicit-Euler
 overshoot mechanism a proportional update would introduce and damps the load$\leftrightarrow$field
@@ -364,10 +367,11 @@ is exactly $I$ (marginal), so no small-signal mode can amplify — the proportio
 additive charge suffers is structurally absent. Second, stability is settled by the operator's own cubic
 potential.
 
-**Theorem 5.9 (congestion stability).** Let $\delta(\mu)=\mu-c\,s(\mu)$, $\Psi(\delta)_i=\delta_i|\delta_i|$,
-and $V(\mu)=\tfrac13\sum_i|\delta_i|^3$. Along the residual flow,
+**Theorem 5.9 (congestion stability).** Let $\varepsilon(\mu)=\mu-c\,s(\mu)$ be the residual,
+$\Psi(\varepsilon)_i=\varepsilon_i|\varepsilon_i|$, and $V(\mu)=\tfrac13\sum_i|\varepsilon_i|^3$. Along the
+residual flow,
 $$
-\dot V=-r\,\Psi(\delta)^{\!\top}\big(I-\operatorname{Sym}J(\mu)\big)\Psi(\delta).
+\dot V=-r\,\Psi(\varepsilon)^{\!\top}\big(I-\operatorname{Sym}J(\mu)\big)\Psi(\varepsilon).
 $$
 If $\sup_\mu\lambda_{\max}\!\big(\operatorname{Sym}J(\mu)\big)<1$, then $V$ is a strict global Lyapunov
 function and the congestion loop converges to its unique fixed point with no oscillation. *(Proof:
@@ -380,8 +384,9 @@ feedback. It gives a **design rule**: hold the load coupling $c$ below $1/\lVert
 $Ds$ is built from the bounded M-matrix field-sensitivity
 $\partial f/\partial\mu_i=-f_i(\mathcal{L}_g+Q)^{-1}e_i\le 0$ (§4), though $Ds$ itself is not sign-definite —
 and the loop is provably ring-free for any glide rate $r$. The bound is conservative, and in the deployed
-loop it is met with room to spare: the up-gradient load _saturates_, so the realized gain $c\,s'(\mu^\star)$
-stays far below $1$ at every coupling and the loop is monotone-stable throughout (§9, Appendix C.5).
+loop it is met with room to spare: the up-gradient load _saturates_, so the realized pointwise gain
+$\gamma_{\mathrm{loop}}(c)=c\,s'(\mu^\star)$ — a single-node multiplier, $\le\Gamma$ (Appendix C.3) — stays
+far below $1$ at every coupling and the loop is monotone-stable throughout (§9, Appendix C.5).
 
 ## 6. The vitality field (proper time)
 
@@ -489,6 +494,46 @@ above the floor. Confidence below $\varphi$ does not erase the direction — it 
 life is no longer vouched for — so the threshold is the consumer's to choose, per packet. Severance is a
 caller decision, never a substrate deletion.
 
+### 7.1 Operational realization
+
+The protocol realization is deliberately smaller than the field theory: a node keeps private adjacency
+state and a per-destination routing information base (RIB), and it exports only advertisements. There is
+one base message type. The message header carries the sender and the set of neighbours the sender currently
+hears; the body is a list of destination entries,
+$$
+(\mathrm{Dest},\mathrm{Pot},\mathrm{Vit})=(d, f^d, V^d).
+$$
+Every emission includes the sender's self-pin $(\mathrm{self},F_0,1)$, which is the only assertion of life.
+The base message carries no sequence number, metric version, hop count, route age, tombstone, or timestamp.
+
+| field | type | meaning |
+|---|---|---|
+| $\mathrm{From}$ | node id | the emitter |
+| $\mathrm{Hears}$ | list of node ids | neighbours the emitter currently hears, used as the bidirectional echo |
+| $\mathrm{Delta}$ | list of entries | one advertised entry per destination retained above the field floor |
+| $\mathrm{Dest}$ | node id | destination described by an entry |
+| $\mathrm{Pot}$ | real $\ge0$ | advertised routing potential $f$ toward $\mathrm{Dest}$ |
+| $\mathrm{Vit}$ | real in $[0,1]$ | advertised vitality $V$ toward $\mathrm{Dest}$ |
+
+Each node runs independently on its own cadence. Reception only records neighbour advertisements and
+performs the retarded vitality adopt-max; emission happens only on the node's local relaxation cadence.
+There is no global round, no barrier, and no shared clock.
+
+Adjacency is admitted only by echo: neighbour $p$ contributes to the relaxation set $N^{\leftrightarrow}(i)$
+when $i$ hears $p$ and $p$'s advertisement lists $i$ in $\mathrm{Hears}$. A small link-layer freshness
+window may remove stale adjacencies, but it is confined to the link layer; routing and liveness do not use
+per-route expiry timers. A received vitality is aged before adoption, using one Tick of staleness per relay
+in the clock-free base protocol,
+$$
+V^d_i \leftarrow \max\!\Big(V^d_i,\operatorname{age}(V^d_p,1)\Big),
+$$
+while a node's held vitality is aged by its own elapsed local time. A clock-synchronized deployment may
+replace the fixed one-Tick relay cost by a measured transit time, but the base protocol never compares
+clocks across nodes.
+
+The data plane reads the RIB as a policy decision over two levels: the field floor says whether a direction
+is known, and the vitality threshold says whether that direction is vouched for.
+
 ## 8. Space–time horizon alignment and bounded state
 
 The two horizons can be made to coincide. The routing field carries direction out to the spatial reach
@@ -558,12 +603,12 @@ self-measures that load and glides its screening charge $\mu$ toward $c\,s$ with
 panel). The charge climbs monotonically to its equilibrium $\mu^\star=c\,s(\mu^\star)$ with no overshoot —
 the non-overshoot integrator's damped settle (Lemma 5.8). The loop stays monotone-stable at _every_
 coupling we tested (to $c=32$): the up-gradient load saturates ($s\to s_\infty\approx4$), so the realized
-loop gain $\Gamma(c)=c\,s'(\mu^\star)$ measured at the operating point holds far below the $\Gamma=1$
-threshold and _falls_ as $c$ rises ($0.40$ at the lightest load, $0.06$ at $c=1$, $0.002$ at $c=32$); a
-naive fixed light-load slope would predict the gain crossing $1$, but saturation defeats it. We observe no
-instability boundary — the energy bound $\lambda_{\max}(\operatorname{Sym}J)<1$ (Theorem 5.9) holds
-throughout, even though the per-node self-term $\partial s_i/\partial\mu_i\ge0$ is non-dissipative (§5.7,
-Appendix C.5).
+single-node loop gain $\gamma_{\mathrm{loop}}(c)=c\,s'(\mu^\star)$ measured at the operating point holds far
+below the $\gamma_{\mathrm{loop}}=1$ threshold and _falls_ as $c$ rises ($0.40$ at the lightest load, $0.06$
+at $c=1$, $0.002$ at $c=32$); a naive fixed light-load slope would predict the gain crossing $1$, but
+saturation defeats it. We observe no instability boundary — the energy bound
+$\lambda_{\max}(\operatorname{Sym}J)<1$ (Theorem 5.9) holds throughout, even though the per-node self-term
+$\partial s_i/\partial\mu_i\ge0$ is non-dissipative (§5.7, Appendix C.5).
 
 Together these exercise every theorem of §§5–6 on the running protocol. The exact fields of §§5–6 are what
 the operator defines; the ensembles here are what an asynchronous, clock-free implementation delivers.
@@ -709,61 +754,69 @@ protocol's guarantees rest only on the exact discrete statements.
 functions of the charge field (§4–§5), the congestion loop is an exact discrete map $\mu\leftarrow G(\mu)$,
 $G(\mu)_i=\operatorname{reg}(\mu_i,\,c\,s_i(\mu),\,r)$. Stability is a property of this map, computed, not
 sampled. Let $\mu^\star$ be the fixed point ($\mu^\star_i=c\,s_i(\mu^\star)$), $e=\mu-\mu^\star$,
-$J=c\,Ds$, and $\delta=\mu-c\,s(\mu)$ the residual (so $\delta=(I-J)e$ to first order in $s$).
+$J=c\,Ds$, and $\varepsilon=\mu-c\,s(\mu)$ the residual (so $\varepsilon=(I-J)e$ to first order in $s$).
 
-**C.2 No linear ringing mode.** Since $\operatorname{reg}(v,T,r)=T+(v-T)/(1+r|v-T|)$ approaches its target
-*algebraically*, $\partial_v\operatorname{reg}|_{v=T}=1$ and $\partial_T\operatorname{reg}|_{v=T}=0$, so the
+**C.2 No linear ringing mode.** Since $\operatorname{reg}(v,\theta,r)=\theta+(v-\theta)/(1+r|v-\theta|)$
+approaches its target *algebraically*, $\partial_v\operatorname{reg}|_{v=\theta}=1$ and
+$\partial_\theta\operatorname{reg}|_{v=\theta}=0$, so the
 Jacobian of $G$ at $\mu^\star$ is exactly $I$. There is no eigenvalue of modulus $>1$: a small perturbation
 cannot ring. (An *additive* charge $\mu_i=c\,s_i$ is a proportional controller whose Jacobian is $J$
 itself, with no such marginality — it rings when $\|J\|>1$. This is the analytic difference between the
 denominator charge that damps and the numerator charge that oscillates, §9.) Stability is thus decided by
 the nonlinear terms, which only damp.
 
-**C.3 The exact one-dimensional multiplier.** For a single node with $T(\mu)=c\,s(\mu)$, $s'<0$ and gain
-$\Gamma=c|s'|$, carrying the coupled linearization to nonlinear order gives the exact per-step error map
+**C.3 The one-dimensional multiplier.** For a single node with target $\theta(\mu)=c\,s(\mu)$ and *realized*
+gain $\gamma_{\mathrm{loop}}=c\,s'(\mu^\star)\ge0$ — non-negative because $\partial s_i/\partial\mu_i\ge0$
+(§5.7) — carrying the coupled linearization to nonlinear order gives the exact per-step error map
 $e^{k+1}=M(e^k)\,e^k$ with
 $$
-M(e)=\frac{1-\Gamma\rho}{1+\rho},\qquad \rho=r(1+\Gamma)|e|.
+M(e)=\gamma_{\mathrm{loop}}+\frac{1-\gamma_{\mathrm{loop}}}{1+r\,|1-\gamma_{\mathrm{loop}}|\,|e|}.
 $$
-Then $M(e)\to 1^-$ as $e\to0$ (algebraic, monotone approach — the marginal mode of C.2, nonlinearly
-damped), and $|M(e)|\le 1$ for all $e$ **iff $\Gamma\le 1$**. For $\Gamma>1$, $|M|>1$ only beyond a
-displacement $|e|>2/\big(r(1+\Gamma)(\Gamma-1)\big)$, so the fixed point is always locally stable and the
-ringing basin shrinks as the glide slows ($r\downarrow$).
+$M(e)\to 1$ as $e\to0$ (the marginal mode of C.2, nonlinearly damped), and crucially $M(e)>0$ for every
+$e$: a positive-feedback self-term cannot *ring*. For $\gamma_{\mathrm{loop}}<1$,
+$M(e)\in(\gamma_{\mathrm{loop}},1]$, so the error contracts monotonically from any displacement — globally
+stable; for $\gamma_{\mathrm{loop}}>1$, $M(e)\in(1,\gamma_{\mathrm{loop}})$, a monotone *runaway* (the node's
+own screening pulling ever more flux), not oscillation. The deployed loop never enters that regime:
+saturation holds $\gamma_{\mathrm{loop}}=c\,s'(\mu^\star)\ll1$ at every coupling (§9). Classical *ringing*
+($M<-1$) requires the opposite sign $c\,s'<0$, which lives only in the mixed-sign off-diagonal of $Ds$; the
+cubic Lyapunov of C.4 — using $\operatorname{Sym}J$, sign-agnostic — covers it.
 
 **C.4 The cubic Lyapunov (proof of Theorem 5.9).** The multi-node result follows from the Lyapunov
 function *matched to the operator*: $\operatorname{reg}$ is the time-$1$ flow of the cubic drag
-$\dot x=-r(x-T)|x-T|$, i.e. gradient descent on $\tfrac{r}{3}|x-T|^3$, so take $V(\mu)=\tfrac13\sum_i
-|\delta_i|^3$. With $\Psi(\delta)_i=\delta_i|\delta_i|$, the residual flow $\dot\mu=-r\,\Psi(\delta)$ gives
-$\dot\delta=(I-J)\dot\mu=-r(I-J)\Psi(\delta)$, hence
+$\dot x=-r(x-\theta)|x-\theta|$, i.e. gradient descent on $\tfrac{r}{3}|x-\theta|^3$, so take
+$V(\mu)=\tfrac13\sum_i |\varepsilon_i|^3$. With $\Psi(\varepsilon)_i=\varepsilon_i|\varepsilon_i|$, the
+residual flow $\dot\mu=-r\,\Psi(\varepsilon)$ gives
+$\dot\varepsilon=(I-J)\dot\mu=-r(I-J)\Psi(\varepsilon)$, hence
 $$
-\dot V=\sum_i\Psi(\delta_i)\,\dot\delta_i=\Psi(\delta)^{\!\top}\dot\delta
-=-r\,\Psi(\delta)^{\!\top}(I-J)\,\Psi(\delta)
-=-r\,\Psi(\delta)^{\!\top}\big(I-\operatorname{Sym}J\big)\Psi(\delta),
+\dot V=\sum_i\Psi(\varepsilon_i)\,\dot\varepsilon_i=\Psi(\varepsilon)^{\!\top}\dot\varepsilon
+=-r\,\Psi(\varepsilon)^{\!\top}(I-J)\,\Psi(\varepsilon)
+=-r\,\Psi(\varepsilon)^{\!\top}\big(I-\operatorname{Sym}J\big)\Psi(\varepsilon),
 $$
 the last step because a quadratic form sees only the symmetric part. If $\lambda_{\max}(\operatorname{Sym}
 J(\mu))<1$ for all $\mu$, then $I-\operatorname{Sym}J\succ0$ and $\dot V\le
--r\,\lambda_{\min}(I-\operatorname{Sym}J)\,\|\Psi(\delta)\|^2<0$ for $\delta\neq0$. $V$ is positive-definite
-and radially unbounded in $\delta$, with $V=0\Leftrightarrow\delta=0\Leftrightarrow\mu=\mu^\star$; by
-Lyapunov's direct method $\mu^\star$ is globally asymptotically stable, without oscillation. The cubic
-potential is what diagonalizes $\dot V$ into a bare quadratic form — a quadratic Lyapunov $\|e\|^2$ fails,
-because the $|\delta|$ of the cubic drag breaks that form. The discrete map is the frozen-target time-$1$
-integrator of this flow; its leading-order decrement is $\Delta V\approx-r\,\Psi^{\!\top}(I-\operatorname{
-Sym}J)\Psi$, and the non-overshoot factor $1/(1+r|\delta_i|)\preceq I$ adds strictly more damping, so the
-realized stable region extends past $\lambda_{\max}(\operatorname{Sym}J)=1$ (numerically, monotone decay of
+-r\,\lambda_{\min}(I-\operatorname{Sym}J)\,\|\Psi(\varepsilon)\|^2<0$ for $\varepsilon\neq0$. $V$ is
+positive-definite and radially unbounded in $\varepsilon$, with
+$V=0\Leftrightarrow\varepsilon=0\Leftrightarrow\mu=\mu^\star$; by Lyapunov's direct method $\mu^\star$ is
+globally asymptotically stable, without oscillation. The cubic potential is what diagonalizes $\dot V$ into
+a bare quadratic form — a quadratic Lyapunov $\|e\|^2$ fails, because the $|\varepsilon|$ of the cubic drag
+breaks that form. The discrete map is the frozen-target time-$1$ integrator of this flow; its leading-order
+decrement is $\Delta V\approx-r\,\Psi^{\!\top}(I-\operatorname{Sym}J)\Psi$, and the non-overshoot factor
+$1/(1+r|\varepsilon_i|)\preceq I$ adds strictly more damping, so the realized stable region extends past
+$\lambda_{\max}(\operatorname{Sym}J)=1$ (numerically, monotone decay of
 $V$ persists to $\approx1.3$, divergence only near $2$). Thus the gain condition is a *conservative*
 sufficient bound for the deployed protocol. $\;\blacksquare$
 
 **C.5 The multi-node map, and why the threshold is not a Perron root.** The per-node analysis of C.3
-generalises to an exact multi-node residual map. With $J=c\,Ds$, $\delta=\mu-c\,s(\mu)$, and
-$A=\operatorname{diag}\!\big(r|\delta_i|/(1+r|\delta_i|)\big)$ (so $A_{ii}\in[0,1)$, $A\to0$ at the fixed
-point, $A\to I$ at large displacement), one non-overshoot step is $\mu^+=\mu-A\delta$ exactly, and carrying
-the load to first order (a mean-value $J$) gives
+generalises to an exact multi-node residual map. With $J=c\,Ds$, $\varepsilon=\mu-c\,s(\mu)$, and
+$A=\operatorname{diag}\!\big(r|\varepsilon_i|/(1+r|\varepsilon_i|)\big)$ (so $A_{ii}\in[0,1)$, $A\to0$ at the
+fixed point, $A\to I$ at large displacement), one non-overshoot step is $\mu^+=\mu-A\varepsilon$ exactly, and
+carrying the load to first order (a mean-value $J$) gives
 $$
-\delta^+=\big[I-(I-J)A\big]\,\delta .
+\varepsilon^+=\big[I-(I-J)A\big]\,\varepsilon .
 $$
 At the fixed point $A\to0$, so the Jacobian is exactly $I$ (C.2): the loop is _marginal_ at small signal
 for every gain, and any instability is finite-amplitude. In the saturated limit $A\to I$ the map is
-$\delta^+=J\delta$, so large-displacement behaviour is governed by the spectral radius $\rho(J)=\rho(c\,Ds)$;
+$\varepsilon^+=J\varepsilon$, so large-displacement behaviour is governed by the spectral radius $\rho(J)=\rho(c\,Ds)$;
 we measure $\rho(c\,Ds)<1$ at every operating point, so there is no large-amplitude blow-up either.
 
 One might hope for a sharp _Perron_ threshold, but $Ds$ is _not_ sign-definite. Its diagonal is
