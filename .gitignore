@@ -79,3 +79,4 @@ paper/figures/_p*.png
 .DS_Store
 .claude/
 /figgen
+/ringscope
