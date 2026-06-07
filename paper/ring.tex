@@ -3,6 +3,14 @@
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath,amssymb}
+\usepackage{amsthm}
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem*{namedtheorem}{Theorem}
+\newtheorem*{namedlemma}{Lemma}
+\numberwithin{equation}{section}
 \usepackage{array,tabularx}
 \usepackage[hidelinks]{hyperref}
 \usepackage{tikz}
@@ -27,7 +35,7 @@ We present RING, a routing and liveness protocol in which every node maintains, 
 
 Grounding the routing operator in M-matrix theory makes loop-freedom, black-hole-freedom, and convergence (synchronous and chaotic-asynchronous) structural consequences of the discrete maximum principle and contraction, rather than topology-specific inductions. For liveness, the reciprocal substitution $U=1/V$ linearizes the nonlinear retarded-max update into the min-plus Bellman/eikonal equation $U_i=\min_j\!\big(U_j+\alpha\tau_{ij}\big)$, whose solution $U_i=1+\alpha T_i$ ($T_i$ the least accumulated transit time) gives the closed form $V_i=1/(1+\alpha T_i)$. This makes the light cone exact — confidence is the reciprocal of one plus causal distance — and turns the count-to-infinity pathology of distance-vector protocols into a feature: with no source, $U$ diverges and $V$ fades smoothly to zero, so a dead destination garbage-collects itself with no sequence numbers, tombstones, or hold-down timers. The same reciprocal aging law applies to stale routing evidence in the dual coordinate $R=1/g$: staleness is added series resistance, so a dead relay's frozen potential loses conductance continuously instead of being removed by a freshness timer.
 
-Congestion enters the \emph{same} operator as a spatially-varying screening charge, so it reshapes the field without weakening any guarantee — and because the fields are exact, the load–charge loop is itself an exact map, which we prove globally ring-free under a loop-gain condition by a Lyapunov argument matched to the integrator. On the fabric both fields are \emph{exact} discrete objects — a linear M-matrix solve and a min-plus shortest path — computed by local asynchronous iteration with classical convergence; the elliptic screened-Poisson and the eikonal Hamilton–Jacobi equations are their \emph{shared continuum limits} (Appendix B), not the equations the network solves.
+Congestion enters the \emph{same} operator as a spatially-varying screening charge, so it reshapes the field without weakening any guarantee — and because the fields are exact, the load–charge loop is itself an exact map, which we prove globally ring-free under a loop-gain condition by a Lyapunov argument matched to the integrator. On the fabric both fields are \emph{exact} discrete objects — a linear M-matrix solve and a min-plus shortest path — computed by local asynchronous iteration with classical convergence; the elliptic screened-Poisson and the eikonal Hamilton–Jacobi equations are their \emph{shared continuum limits} (Appendix~\ref{app:fields}), not the equations the network solves.
 
 We give the full proofs and validate every theorem on an asynchronous reference implementation — the $V(\delta)$ droop, clock-free robustness under skew, the necessity of retardation, reciprocal link-aging around dead relays, graceful count-to-infinity against a textbook distance-vector baseline, data-plane delivery through node death and partition, loop-dissipativity under churn, and congestion damping that stays monotone-stable at every coupling.
 
@@ -39,7 +47,7 @@ Routing and liveness in asynchronous packet networks are traditionally built fro
 
 A second, quieter problem is the conflation of \emph{space} and \emph{time}. A liveness signal that is "distance-invariant" — asserting full confidence in a source regardless of how many hops away it is — looks attractive, because it decouples reachability from failure detection. But it is a violation of causality. Information advances at most one hop per tick, so a node $\delta$ hops from a source cannot hold evidence of that source's life fresher than $\delta$ ticks old. Full confidence at any distance is therefore \emph{overconfidence by construction}: it is achieved only by discarding the age of the evidence, and it pays for that optimism with detection latency — the node keeps routing into a corpse for the duration of the propagation delay.
 
-RING resolves both by treating routing and liveness as two scalar \textbf{fields} governed by the same local, monotone iterative dynamics, and reading their guarantees off the underlying mathematics rather than off topology-specific arguments. Both fields are \emph{exact} discrete objects on the fabric; the partial differential equations we name below — elliptic screened-Poisson, eikonal Hamilton–Jacobi — are their shared continuum limits, formalized and scoped in Appendix B, not the equations the network solves.
+RING resolves both by treating routing and liveness as two scalar \textbf{fields} governed by the same local, monotone iterative dynamics, and reading their guarantees off the underlying mathematics rather than off topology-specific arguments. Both fields are \emph{exact} discrete objects on the fabric; the partial differential equations we name below — elliptic screened-Poisson, eikonal Hamilton–Jacobi — are their shared continuum limits, formalized and scoped in Appendix~\ref{app:fields}, not the equations the network solves.
 
 \begin{itemize}
 \item \textbf{Direction} is the gradient of a \emph{screened potential} $f$ — the exact solution of a discrete M-matrix system (continuum limit: the elliptic screened-Poisson equation) whose only maxima are the pinned destinations (the discrete maximum principle), so greedy up-gradient forwarding cannot loop or black-hole, for any topology and any reach. The field is bounded by its source pin, so there is no count-to-infinity to suppress; stale neighbour evidence is attenuated by aging its link conductance, not by thresholding the field.
@@ -53,14 +61,14 @@ The result is a substrate with no timers, sequence numbers, tombstones, or hold-
 \section{Contributions}\label{sec:contributions}
 
 \begin{enumerate}
-\item \textbf{A two-field formulation} in which routing and liveness are two \emph{exact} discrete operators — a linear screened M-matrix solve and a min-plus shortest path — solved by local asynchronous iteration; routing guarantees reduce to the M-matrix maximum principle and contraction (§\ref{sec:routing}), and the elliptic screened-Poisson and eikonal partial differential equations are their continuum limits (Appendix B), not the operative equations.
-\item \textbf{Liveness as a retarded discrete-eikonal field} (§\ref{sec:vitality}): the reciprocal transform $U=1/V$ is an \emph{exact} linearization — over the $(\min,+)$ tropical semiring shortest-path is linear — carrying the nonlinear retarded-max transport into the min-plus Bellman / Hamilton–Jacobi equation, with closed form $V_i=1/(1+\alpha T_i)$. The light cone is exact on the graph (the proper-time ball); the continuum eikonal is its limit (Appendix B).
+\item \textbf{A two-field formulation} in which routing and liveness are two \emph{exact} discrete operators — a linear screened M-matrix solve and a min-plus shortest path — solved by local asynchronous iteration; routing guarantees reduce to the M-matrix maximum principle and contraction (§\ref{sec:routing}), and the elliptic screened-Poisson and eikonal partial differential equations are their continuum limits (Appendix~\ref{app:fields}), not the operative equations.
+\item \textbf{Liveness as a retarded discrete-eikonal field} (§\ref{sec:vitality}): the reciprocal transform $U=1/V$ is an \emph{exact} linearization — over the $(\min,+)$ tropical semiring shortest-path is linear — carrying the nonlinear retarded-max transport into the min-plus Bellman / Hamilton–Jacobi equation, with closed form $V_i=1/(1+\alpha T_i)$. The light cone is exact on the graph (the proper-time ball); the continuum eikonal is its limit (Appendix~\ref{app:fields}).
 \item \textbf{Count-to-infinity as garbage collection}: because the data plane reads $V=1/U$, the unbounded divergence of a sourceless Bellman iteration becomes the graceful fade of a dead destination — no sequence numbers or tombstones (§\ref{sec:death}, §\ref{sec:empirical}).
-\item \textbf{A necessity theorem for retardation} (Theorem 6.2): without aging incoming evidence by its transit, mutual exchange admits a spurious self-sustaining fixed point (a "resurrected" dead source); retardation removes it, giving a thermodynamic arrow that forbids liveness without a live source.
+\item \textbf{A necessity theorem for retardation} (Theorem~\ref{thm:retardation}): without aging incoming evidence by its transit, mutual exchange admits a spurious self-sustaining fixed point (a "resurrected" dead source); retardation removes it, giving a thermodynamic arrow that forbids liveness without a live source.
 \item \textbf{Reciprocal link-aging for stale routing evidence} (§\ref{sec:stale-evidence}): the same proper-time aging operator acts on link resistance $R=1/g$. A stale advertisement with age $k$ contributes through $g^{\mathrm{eff}}=g/(1+\alpha k g)$, equivalently $1/g^{\mathrm{eff}}=1/g+\alpha k$, so a dead relay's frozen potential drains continuously to zero influence without a freshness threshold.
-\item \textbf{Eventual non-trapping under chaotic asynchrony} (Theorem 5.7): once forcing stops, transient forwarding cycles are confined to equilibrium level sets where the gradient current is vanishing, and the dominant current evacuates them — exact acyclicity at rest; under continuing churn the corresponding property is a bounded non-equilibrium steady state confined to vanishing-current level sets (§\ref{sec:loop-free}, validated in §\ref{sec:empirical}).
-\item \textbf{Congestion as a screening charge, provably stable} (§\ref{sec:congestion}–§\ref{sec:congestion-stability}): load enters the same operator as a spatially-varying diagonal, compatible with every guarantee because they hold for any $q_i\ge\kappa>0$; and the exact load–charge loop is globally ring-free under a loop-gain condition (Theorem 5.9), via a cubic Lyapunov matched to the non-overshoot integrator — replacing an empirical stability claim with a proof.
-\item \textbf{Space-time horizon alignment} (§\ref{sec:spacetime}): tuning the aging rate so the temporal horizon matches the spatial reach makes per-node state self-bounding, $O\!\big(n\cdot\mathrm{Vol}(\lambda)\big)$.
+\item \textbf{Eventual non-trapping under chaotic asynchrony} (Theorem~\ref{thm:nontrapping}): once forcing stops, transient forwarding cycles are confined to equilibrium level sets where the gradient current is vanishing, and the dominant current evacuates them — exact acyclicity at rest; under continuing churn the corresponding property is a bounded non-equilibrium steady state confined to vanishing-current level sets (§\ref{sec:loop-free}, validated in §\ref{sec:empirical}).
+\item \textbf{Congestion as a screening charge, provably stable} (§\ref{sec:congestion}–§\ref{sec:congestion-stability}): load enters the same operator as a spatially-varying diagonal, compatible with every guarantee because they hold for any $q_i\ge\kappa>0$; and the exact load–charge loop is globally ring-free under a loop-gain condition (Theorem~\ref{thm:congestion}), via a cubic Lyapunov matched to the non-overshoot integrator — replacing an empirical stability claim with a proof.
+\item \textbf{Space-time horizon alignment} (§\ref{sec:spacetime}): tuning the aging rate so the temporal horizon matches the spatial reach $\lambda$ makes per-node state self-bounding, $O\!\big(n\cdot\mathrm{Vol}(\lambda)\big)$.
 \item \textbf{Empirical validation} on an asynchronous reference implementation (§\ref{sec:empirical}), as ensembles over reps: the measured $V(\delta)$ droop, clock-free skew-robustness, the retardation lock and its cure, graceful count-to-infinity against a textbook distance-vector baseline, data-plane delivery through node death and partition, loop-dissipativity under churn, and congestion damping that stays monotone-stable at every coupling.
 \end{enumerate}
 
@@ -93,6 +101,7 @@ $g_{ij}>0$ & conductance of edge $\{i,j\}$, symmetric ($g_{ij}=g_{ji}$); uniform
 $g^{\mathrm{eff}}_{ij}(k)$ & effective conductance of a stale advertisement after $k$ ticks: $1/g^{\mathrm{eff}}_{ij}=1/g_{ij}+\alpha k$ \\
 $G_i=\sum_{j\in N(i)}g_{ij}$ & total conductance incident on $i$ \\
 $\kappa>0$ & baseline screening (sets reach) \\
+$\lambda>0$ & reach length: the screened field's decay scale, $\lambda\approx\sqrt{D/\kappa}$ for $\kappa/D\ll1$ (§\ref{sec:reach}) \\
 $\mu_i\ge 0$ & local screening from load at $i$; the screening charge is $q_i=\kappa+\mu_i$ \\
 $s_i\ge 0$ & carried current at $i$ (its self-measured load): $\sum_{d}\max_{j\in N(i)}g_{ij}(f^d_j-f^d_i)$, the up-gradient flux it forwards, summed over destinations (§\ref{sec:congestion}) \\
 $c\ge 0$ & congestion coupling (crowding rate): the charge tracks $c\,s_i$; $c=0$ disables congestion (§\ref{sec:congestion}–§\ref{sec:congestion-stability}) \\
@@ -120,19 +129,18 @@ $\delta\ge 0$ & hop-distance to a source (causal distance in ticks): the unit-tr
 
 Each non-destination node relaxes its potential to the conductance-weighted mean of its neighbours, attenuated by the screening charge:
 
-\[
+\begin{equation}\label{eq:relaxation}
 f^d_i \;\longleftarrow\; \frac{\sum_{j\in N(i)} g_{ij}\,f^d_j}{G_i + q_i},\qquad q_i = \kappa+\mu_i.
-\tag{5.1}
-\]
+\end{equation}
 
-The destination pins $f^d_d=F_0$ and does not relax its own field. Clearing the denominator gives the operator form $(\mathcal{L}_g f^d)_i + q_i f^d_i = 0$. Each destination's field is independent and linear; a node maintains one scalar relaxation per known destination over a shared neighbour table.
+The destination pins $f^d_d=F_0$ and does not relax its own field. Clearing the denominator gives the operator form $(\mathcal{L}_g f^d)_i + q_i f^d_i = 0$. Each destination's field is independent and linear; a node maintains one scalar relaxation per known destination over a shared neighbour table (Fig.~\ref{fig:multisource}).
 
-\emph{Non-negativity.} The pin is $F_0>0$ and (5.1) is a non-negative combination; the inverse-positive operator (§\ref{sec:notation}) gives $f^{d\star}_i>0$ for every node in $d$'s connected component. Operational reach is where that positive field remains above a floor, not a hard hop count.
+\emph{Non-negativity.} The pin is $F_0>0$ and \eqref{eq:relaxation} is a non-negative combination; the inverse-positive operator (§\ref{sec:notation}) gives $f^{d\star}_i>0$ for every node in $d$'s connected component. Operational reach is where that positive field remains above a floor, not a hard hop count.
 
 \begin{figure}[tbp]
 \centering
 \input{figures/fig-multisource}
-\caption{\textsc{[exact]} A direct solve of the screened operator $(\mathcal{L}_g+Q)f=0$ on an irregular graph. Two pinned destinations raise two attracting basins with a watershed between them; a loaded sink (large $\mu$, locally short reach) bends the steepest-ascent streamlines around itself. This is the per-destination field the operator \emph{defines} — the object each node's relaxation (5.1) converges to.}
+\caption{\textsc{[exact]} A direct solve of the screened operator $(\mathcal{L}_g+Q)f=0$ on an irregular graph. Two pinned destinations raise two attracting basins with a watershed between them; a loaded sink (large $\mu$, locally short reach) bends the steepest-ascent streamlines around itself. This is the per-destination field the operator \emph{defines} — the object each node's relaxation \eqref{eq:relaxation} converges to.}
 \label{fig:multisource}
 \end{figure}
 
@@ -142,49 +150,78 @@ $q_i=\kappa+\mu_i$ is one quantity with two contributions: $\kappa$ is the unifo
 
 \subsection{Convergence}\label{sec:convergence}
 
-Write (5.1) as $f\leftarrow Mf$ with $M_{ij}=g_{ij}/(G_i+q_i)$ for $j\in N(i)$, $M_{ii}=0$ (the pin is a fixed boundary term).
+Write \eqref{eq:relaxation} as $f\leftarrow Mf$ with $M_{ij}=g_{ij}/(G_i+q_i)$ for $j\in N(i)$, $M_{ii}=0$ (the pin is a fixed boundary term).
 
-\textbf{Lemma 5.1 (contraction).} $\lVert M\rVert_\infty\le\gamma<1$, where $\gamma=\max_i G_i/(G_i+q_i)\le\max_i G_i/(G_i+\kappa)<1.$ \emph{Proof.} Each row is non-negative with sum $G_i/(G_i+q_i)=1-q_i/(G_i+q_i)<1$ since $q_i\ge\kappa>0$. $\;\blacksquare$
+\begin{lemma}[contraction]\label{lem:contraction}
+$\lVert M\rVert_\infty\le\gamma<1$, where $\gamma=\max_i G_i/(G_i+q_i)\le\max_i G_i/(G_i+\kappa)<1.$
+\end{lemma}
+\begin{proof}
+Each row is non-negative with sum $G_i/(G_i+q_i)=1-q_i/(G_i+q_i)<1$ since $q_i\ge\kappa>0$.
+\end{proof}
 
-\textbf{Theorem 5.2 (fixed point).} The field equation has a unique solution $f^{d\star}$, and synchronous relaxation converges geometrically, $\lVert f^{(k)}-f^{d\star}\rVert_\infty\le\gamma^k\lVert f^{(0)}-f^{d\star}\rVert_\infty$. \emph{Proof.} $M$ is an $\lVert\cdot\rVert_\infty$-contraction (Lemma 5.1); apply the Banach fixed-point theorem. $\;\blacksquare$
+\begin{theorem}[fixed point]\label{thm:fixedpoint}
+The field equation has a unique solution $f^{d\star}$, and synchronous relaxation converges geometrically, $\lVert f^{(k)}-f^{d\star}\rVert_\infty\le\gamma^k\lVert f^{(0)}-f^{d\star}\rVert_\infty$.
+\end{theorem}
+\begin{proof}
+$M$ is an $\lVert\cdot\rVert_\infty$-contraction (Lemma~\ref{lem:contraction}); apply the Banach fixed-point theorem.
+\end{proof}
 
-\textbf{Theorem 5.3 (asynchronous convergence).} For a fixed charge field $q$, under any schedule in which every node relaxes infinitely often using possibly-stale neighbour values (bounded delay), the iteration converges to $f^{d\star}$. \emph{Proof.} $M\ge 0$ entrywise, so $\rho(M)\le\lVert M\rVert_\infty=\gamma<1$; the Chazan–Miranker theorem on chaotic relaxation gives convergence of $x\leftarrow Mx$ whenever $\rho(M)<1$ (Chazan and Miranker 1969). $\;\blacksquare$
+\begin{theorem}[asynchronous convergence]\label{thm:async}
+For a fixed charge field $q$, under any schedule in which every node relaxes infinitely often using possibly-stale neighbour values (bounded delay), the iteration converges to $f^{d\star}$.
+\end{theorem}
+\begin{proof}
+$M\ge 0$ entrywise, so $\rho(M)\le\lVert M\rVert_\infty=\gamma<1$; the Chazan–Miranker theorem on chaotic relaxation gives convergence of $x\leftarrow Mx$ whenever $\rho(M)<1$ (Chazan and Miranker 1969).
+\end{proof}
 
-When the charge drifts (a node's $\mu_i$ moving under load) the field tracks a moving target; the relevant property is stability. Every $M_t$ satisfies $\lVert M_t\rVert_\infty\le\bar\gamma<1$ with $\bar\gamma=\max_i G_i/(G_i+\kappa)$ — a uniform contraction in one fixed norm. The homogeneous error contracts at rate $\bar\gamma$ under every schedule, so the field cannot diverge while $\mu$ moves, and if $\mu$ settles the iteration converges to the corresponding fixed point (Theorems 5.2/5.3).
+When the charge drifts (a node's $\mu_i$ moving under load) the field tracks a moving target; the relevant property is stability. Every $M_t$ satisfies $\lVert M_t\rVert_\infty\le\bar\gamma<1$ with $\bar\gamma=\max_i G_i/(G_i+\kappa)$ — a uniform contraction in one fixed norm. The homogeneous error contracts at rate $\bar\gamma$ under every schedule, so the field cannot diverge while $\mu$ moves, and if $\mu$ settles the iteration converges to the corresponding fixed point (Theorems~\ref{thm:fixedpoint}/\ref{thm:async}).
 
 \subsection{Stale evidence as series resistance}\label{sec:stale-evidence}
 
-Bounded-delay asynchrony is not node death. Theorem 5.3 covers neighbours whose advertisements are stale but refreshed within a bounded delay. A silent relay is an \emph{unbounded} delay: its last advertised potential may remain stored forever, while the physical node no longer diffuses or leaks. Leaving the old coefficient $g_{ij}$ attached to that frozen value makes the stale advertisement a spurious source term. The field should instead forget stale routing evidence by aging the conductance of the stale link.
+Bounded-delay asynchrony is not node death. Theorem~\ref{thm:async} covers neighbours whose advertisements are stale but refreshed within a bounded delay. A silent relay is an \emph{unbounded} delay: its last advertised potential may remain stored forever, while the physical node no longer diffuses or leaks. Leaving the old coefficient $g_{ij}$ attached to that frozen value makes the stale advertisement a spurious source term. The field should instead forget stale routing evidence by aging the conductance of the stale link.
 
 Let $k$ be the age, in local ticks, of the last advertisement heard on edge $ij$. Define its effective conductance by adding staleness as series resistance,
-\[
+\begin{equation}\label{eq:series-resistance}
 \boxed{\;\frac{1}{g^{\mathrm{eff}}_{ij}(k)}=\frac{1}{g_{ij}}+\alpha k\;},\qquad
  g^{\mathrm{eff}}_{ij}(k)=\frac{g_{ij}}{1+
 \alpha k g_{ij}}.
-\tag{5.1a}
-\]
+\end{equation}
 This is the same reciprocal proper-time law as vitality: vitality ages in $U=1/V$ by $U\leftarrow U+\alpha k$, while link evidence ages in $R=1/g$ by $R\leftarrow R+\alpha k$. If one writes a separate link-aging rate $\beta$, the one-operator statement is $\beta=\alpha$.
 
-\textbf{Lemma (reciprocal link-aging).} $g^{\mathrm{eff}}_{ij}(0)=g_{ij}$, $g^{\mathrm{eff}}_{ij}(k)$ is monotone decreasing in $k$, and $g^{\mathrm{eff}}_{ij}(k)\to0$ as $k\to\infty$. For every finite age vector, replacing $g$ by $g^{\mathrm{eff}}$ leaves the routing operator a screened M-matrix with $q_i\ge\kappa>0$. \emph{Proof.} The first claims are immediate from (5.1a). Nonnegative conductances preserve the Laplacian sign pattern and diagonal dominance, and $Q\succeq\kappa I$ remains unchanged; hence $\mathcal L_{g^{\mathrm{eff}}}+Q$ is the same class of symmetric M-matrix as before. $\;\blacksquare$
+\begin{namedlemma}[reciprocal link-aging]
+$g^{\mathrm{eff}}_{ij}(0)=g_{ij}$, $g^{\mathrm{eff}}_{ij}(k)$ is monotone decreasing in $k$, and $g^{\mathrm{eff}}_{ij}(k)\to0$ as $k\to\infty$. For every finite age vector, replacing $g$ by $g^{\mathrm{eff}}$ leaves the routing operator a screened M-matrix with $q_i\ge\kappa>0$.
+\end{namedlemma}
+\begin{proof}
+The first claims are immediate from \eqref{eq:series-resistance}. Nonnegative conductances preserve the Laplacian sign pattern and diagonal dominance, and $Q\succeq\kappa I$ remains unchanged; hence $\mathcal L_{g^{\mathrm{eff}}}+Q$ is the same class of symmetric M-matrix as before.
+\end{proof}
 
-\textbf{Theorem (dead-relay drain).} A dead relay's frozen potential cannot remain a permanent routing pin under (5.1a). \emph{Proof.} Potentials are bounded by the source pin, $0\le p^d_j\le F_0$. The stale contribution of $j$ to $i$'s relaxation is therefore bounded by
+\begin{namedtheorem}[dead-relay drain]
+A dead relay's frozen potential cannot remain a permanent routing pin under \eqref{eq:series-resistance}.
+\end{namedtheorem}
+\begin{proof}
+Potentials are bounded by the source pin, $0\le p^d_j\le F_0$. The stale contribution of $j$ to $i$'s relaxation is therefore bounded by
 \[
 0\le g^{\mathrm{eff}}_{ij}(k)p^d_j\le F_0\,\frac{g_{ij}}{1+\alpha k g_{ij}}\longrightarrow 0.
 \]
-The stored value may remain in memory, but its coefficient drains to zero, so it supplies no fixed source term. If a surviving neighbour offers a positive up-gradient flux bounded below after reconvergence, the decaying stale flux is eventually smaller, and the max-current forwarding choice leaves the corpse. $\;\blacksquare$
+The stored value may remain in memory, but its coefficient drains to zero, so it supplies no fixed source term. If a surviving neighbour offers a positive up-gradient flux bounded below after reconvergence, the decaying stale flux is eventually smaller, and the max-current forwarding choice leaves the corpse.
+\end{proof}
 
 Thus freshness windows are not load-bearing in the field foundation. They may be replaced in deployments by policy reads on the continuous field — for example pruning links whose $g^{\mathrm{eff}}$ is numerically negligible or using a fast-failover cutoff — but the mathematics above does not require a hard staleness threshold.
 
 \subsection{The maximum principle}\label{sec:max-principle}
 
-\textbf{Theorem 5.4 (no interior maximum).} At the fixed point, every non-destination node $i$ with $f^{d\star}_i>0$ satisfies $f^{d\star}_i<\max_{j\in N(i)}f^{d\star}_j$. \emph{Proof.} From (5.1), $f^{d\star}_i=\gamma_i\langle f^{d\star}\rangle_{N(i)}$ with $\gamma_i=G_i/(G_i+q_i)<1$ and $\langle\cdot\rangle$ the conductance-weighted neighbour mean $\le\max_j f^{d\star}_j$. With $f^{d\star}_i>0$, $\max_j f^{d\star}_j>0$, so $f^{d\star}_i\le\gamma_i\max_j f^{d\star}_j<\max_j f^{d\star}_j$. $\;\blacksquare$
+\begin{theorem}[no interior maximum]\label{thm:maxprinciple}
+At the fixed point, every non-destination node $i$ with $f^{d\star}_i>0$ satisfies $f^{d\star}_i<\max_{j\in N(i)}f^{d\star}_j$.
+\end{theorem}
+\begin{proof}
+From \eqref{eq:relaxation}, $f^{d\star}_i=\gamma_i\langle f^{d\star}\rangle_{N(i)}$ with $\gamma_i=G_i/(G_i+q_i)<1$ and $\langle\cdot\rangle$ the conductance-weighted neighbour mean $\le\max_j f^{d\star}_j$. With $f^{d\star}_i>0$, $\max_j f^{d\star}_j>0$, so $f^{d\star}_i\le\gamma_i\max_j f^{d\star}_j<\max_j f^{d\star}_j$.
+\end{proof}
 
-The field's only maxima are the pinned destinations; the gradient has no interior sink.
+The field's only maxima are the pinned destinations; the gradient has no interior sink (Fig.~\ref{fig:maxprinciple}).
 
 \begin{figure}[tbp]
 \centering
 \input{figures/fig-maxprinciple}
-\caption{\textsc{[exact]} The maximum principle (Theorem 5.4), by counterexample. \emph{Left:} the field the operator produces toward a corner source — every interior node sits strictly below its largest neighbour, so steepest-ascent arrows all escape to the source (no trap). \emph{Right:} a hand-drawn \emph{forbidden} configuration with a spurious interior maximum — every nearby arrow points into it, a black hole. The screened M-matrix can never produce the right panel (Theorems 5.4, 5.6); it is an impossibility, not a measurement.}
+\caption{\textsc{[exact]} The maximum principle (Theorem~\ref{thm:maxprinciple}), by counterexample. \emph{Left:} the field the operator produces toward a corner source — every interior node sits strictly below its largest neighbour, so steepest-ascent arrows all escape to the source (no trap). \emph{Right:} a hand-drawn \emph{forbidden} configuration with a spurious interior maximum — every nearby arrow points into it, a black hole. The screened M-matrix can never produce the right panel (Theorems~\ref{thm:maxprinciple}, \ref{thm:blackhole}); it is an impossibility, not a measurement.}
 \label{fig:maxprinciple}
 \end{figure}
 
@@ -192,29 +229,43 @@ The field's only maxima are the pinned destinations; the gradient has no interio
 
 A node forwards along the discrete current $J_{ij}=g_{ij}(f^d_j-f^d_i)$. The active next hops are the strictly-uphill neighbours, split in proportion to the current:
 
-\[
+\begin{equation}\label{eq:via}
 N^{\uparrow}(i)=\{\,j\in N(i):f^d_j>f^d_i\,\},\qquad w_{ij}=g_{ij}(f^d_j-f^d_i),\qquad \text{via}=\arg\max_j w_{ij}.
-\tag{5.2}
-\]
+\end{equation}
 
-Forwarding to all uphill neighbours is a current-proportional spread (a generalisation of equal-cost multipath); the dominant edge is the maximum-current hop. Conductance biases the split toward high-quality links without changing which neighbours qualify.
+Forwarding to all uphill neighbours is a current-proportional spread (a generalisation of equal-cost multipath); the dominant edge is the maximum-current hop. Conductance biases the split toward high-quality links without changing which neighbours qualify (Fig.~\ref{fig:gridflow}).
 
 \begin{figure}[tbp]
 \centering
 \input{figures/fig-gridflow}
-\caption{\textsc{[measured]} The forwarding map on a converged grid: at each node the dominant up-gradient hop (5.2), coloured by the log of the current $g_{ij}(f^d_j-f^d_i)$ it carries. Every arrow climbs to the single source basin — the active-edge relation is acyclic (Theorem 5.5) with no interior sink (Theorem 5.6).}
+\caption{\textsc{[measured]} The forwarding map on a converged grid: at each node the dominant up-gradient hop \eqref{eq:via}, coloured by the log of the current $g_{ij}(f^d_j-f^d_i)$ it carries. Every arrow climbs to the single source basin — the active-edge relation is acyclic (Theorem~\ref{thm:loopfree}) with no interior sink (Theorem~\ref{thm:blackhole}).}
 \label{fig:gridflow}
 \end{figure}
 
 \subsection{Loop-freedom, black-hole-freedom, dissipativity}\label{sec:loop-free}
 
-\textbf{Theorem 5.5 (loop-freedom).} For any single field configuration $f$, the active-edge relation $\{i\to j:f_j>f_i\}$ is acyclic. \emph{Proof.} A directed walk along active edges strictly increases $f$; a cycle would force a value to exceed itself. The active edges are the strict-ascent relation of a real labeling — a DAG — for the equilibrium field and every relaxation iterate alike. $\;\blacksquare$
+\begin{theorem}[loop-freedom]\label{thm:loopfree}
+For any single field configuration $f$, the active-edge relation $\{i\to j:f_j>f_i\}$ is acyclic.
+\end{theorem}
+\begin{proof}
+A directed walk along active edges strictly increases $f$; a cycle would force a value to exceed itself. The active edges are the strict-ascent relation of a real labeling — a DAG — for the equilibrium field and every relaxation iterate alike.
+\end{proof}
 
-\textbf{Theorem 5.6 (black-hole-freedom).} At equilibrium, ascent from any node with $f^{d\star}_i>0$ reaches $d$ in finitely many hops. \emph{Proof.} By Theorem 5.4 every positive non-destination has an uphill neighbour, so $N^{\uparrow}(i)\neq \varnothing$; each hop strictly increases a quantity bounded above by $F_0$, and on a finite graph a strictly-increasing walk terminates at the maximum, $d$. $\;\blacksquare$
+\begin{theorem}[black-hole-freedom]\label{thm:blackhole}
+At equilibrium, ascent from any node with $f^{d\star}_i>0$ reaches $d$ in finitely many hops.
+\end{theorem}
+\begin{proof}
+By Theorem~\ref{thm:maxprinciple} every positive non-destination has an uphill neighbour, so $N^{\uparrow}(i)\neq \varnothing$; each hop strictly increases a quantity bounded above by $F_0$, and on a finite graph a strictly-increasing walk terminates at the maximum, $d$.
+\end{proof}
 
-When every forwarding comparison reads one field configuration — the common case, each node re-advertising every tick — the active edges are that configuration's strict-ascent relation, acyclic at every round by Theorem 5.5. Under bounded-delay asynchrony a comparison may mix values from different relaxation steps, and a transient cycle can momentarily appear. It cannot persist:
+When every forwarding comparison reads one field configuration — the common case, each node re-advertising every tick — the active edges are that configuration's strict-ascent relation, acyclic at every round by Theorem~\ref{thm:loopfree}. Under bounded-delay asynchrony a comparison may mix values from different relaxation steps, and a transient cycle can momentarily appear. It cannot persist:
 
-\textbf{Theorem 5.7 (eventual non-trapping).} Fix the graph and charge field after the last disturbance. Under bounded-delay fair asynchrony there is a finite time after which the dominant forwarding hop is acyclic and no packet is trapped. \emph{Proof.} By Theorem 5.3 every advertised potential converges to $f^{d\star}$, so the bounded-delay samples any node compares are eventually within any $\varepsilon>0$ of equilibrium. Let $g_{\min}$ be the smallest \emph{nonzero} equilibrium gap. Once samples are within $g_{\min}/2$, every edge with $f^{d\star}_i\neq f^{d\star}_j$ is compared with the correct sign, so the active relation restricted to such edges is the equilibrium strict-ascent DAG (Theorems 5.5, 5.4). A \emph{level-set} edge ($f^{d\star}_i=f^{d\star}_j$) carries current $O(\varepsilon)\to 0$, while by Theorem 5.4 every non-destination node — including one on a level set — has a strictly-higher \emph{exterior} neighbour, so its dominant current leaves the set and climbs the equilibrium gradient. The via-map therefore follows the equilibrium ascent and is acyclic; the only circulation not excluded is the vanishing $O(\varepsilon)$ flow on a flat level set, which makes no potential progress and decays to zero. $\;\blacksquare$
+\begin{theorem}[eventual non-trapping]\label{thm:nontrapping}
+Fix the graph and charge field after the last disturbance. Under bounded-delay fair asynchrony there is a finite time after which the dominant forwarding hop is acyclic and no packet is trapped.
+\end{theorem}
+\begin{proof}
+By Theorem~\ref{thm:async} every advertised potential converges to $f^{d\star}$, so the bounded-delay samples any node compares are eventually within any $\varepsilon>0$ of equilibrium. Let $g_{\min}$ be the smallest \emph{nonzero} equilibrium gap. Once samples are within $g_{\min}/2$, every edge with $f^{d\star}_i\neq f^{d\star}_j$ is compared with the correct sign, so the active relation restricted to such edges is the equilibrium strict-ascent DAG (Theorems~\ref{thm:loopfree}, \ref{thm:maxprinciple}). A \emph{level-set} edge ($f^{d\star}_i=f^{d\star}_j$) carries current $O(\varepsilon)\to 0$, while by Theorem~\ref{thm:maxprinciple} every non-destination node — including one on a level set — has a strictly-higher \emph{exterior} neighbour, so its dominant current leaves the set and climbs the equilibrium gradient. The via-map therefore follows the equilibrium ascent and is acyclic; the only circulation not excluded is the vanishing $O(\varepsilon)$ flow on a flat level set, which makes no potential progress and decays to zero.
+\end{proof}
 
 Under \emph{continuing} forcing (load that keeps $\mu$ in motion) the corresponding property is a bounded non-equilibrium steady state: circulation stays confined to near-flat level sets and carries vanishing current, rather than exact acyclicity.
 
@@ -224,27 +275,35 @@ Congestion is \emph{endogenous}: a node measures the current it carries and scre
 \[
   s_i \;=\; \sum_{d}\,\max_{j\in N(i)}\, g_{ij}\big(f^d_j-f^d_i\big),
 \]
-the sum over destinations $d$ of the up-gradient flux it forwards on its chosen (max-flux) edge — the very quantity the current split of §\ref{sec:forwarding} already computes, read off the node's own field state each relax. A loaded node (large $s_i$) raises its screening charge $\mu_i$, which by (5.1) flattens its potential — a shorter local reach (§\ref{sec:reach}). It then advertises a depressed potential, so fewer neighbours route \emph{into} it and the offered demand reroutes around the screened node. The self-regulation is not a per-node negative feedback, though: deepening one's own sink \emph{widens} the up-gradient gap one measures, so the self-term $\partial s_i/\partial\mu_i\ge0$ (the symmetric M-matrix puts the resolvent's row maximum on the diagonal). Stability is therefore global — the symmetric-spectrum bound of §\ref{sec:congestion-stability} together with the saturation of $s$ — not each node shedding its own measured load (§\ref{sec:empirical}, Appendix C.5). Because $\mu_i\ge 0$ keeps $q_i\ge\kappa>0$, every guarantee of §\ref{sec:convergence}–§\ref{sec:loop-free} holds unchanged.
+the sum over destinations $d$ of the up-gradient flux it forwards on its chosen (max-flux) edge — the very quantity the current split of §\ref{sec:forwarding} already computes, read off the node's own field state each relax. A loaded node (large $s_i$) raises its screening charge $\mu_i$, which by \eqref{eq:relaxation} flattens its potential — a shorter local reach (§\ref{sec:reach}). It then advertises a depressed potential, so fewer neighbours route \emph{into} it and the offered demand reroutes around the screened node. The self-regulation is not a per-node negative feedback, though: deepening one's own sink \emph{widens} the up-gradient gap one measures, so the self-term $\partial s_i/\partial\mu_i\ge0$ (the symmetric M-matrix puts the resolvent's row maximum on the diagonal). Stability is therefore global — the symmetric-spectrum bound of §\ref{sec:congestion-stability} together with the saturation of $s$ — not each node shedding its own measured load (§\ref{sec:empirical}, Appendix C.5). Because $\mu_i\ge 0$ keeps $q_i\ge\kappa>0$, every guarantee of §\ref{sec:convergence}–§\ref{sec:loop-free} holds unchanged.
 
 The load-to-charge map is closed \emph{internally}, through a \textbf{non-overshoot integrator}: with coupling $c$ (the crowding rate) and glide rate $r$, the charge glides toward its own carried-current target, $\mu_i\leftarrow\operatorname{reg}(\mu_i,\,c\,s_i,\,r)$, where $\operatorname{reg}(v,\theta,r)=\theta+(v-\theta)/(1+r\lvert v-\theta\rvert)$ ($\theta$ the target). (A deployment may add an externally-offered demand to $s_i$; the base signal is self-measured.)
 
-\textbf{Lemma 5.8 (non-overshoot).} $\operatorname{reg}(v,\theta,r)$ lies strictly between $v$ and $\theta$ for $r>0$, $v\neq\theta$, reaching $\theta$ only in the limit. \emph{Proof.} The factor $1/(1+r\lvert v-\theta\rvert)\in(0,1)$ shrinks the gap $v-\theta$ without changing its sign. $\;\blacksquare$
+\begin{lemma}[non-overshoot]\label{lem:nonovershoot}
+$\operatorname{reg}(v,\theta,r)$ lies strictly between $v$ and $\theta$ for $r>0$, $v\neq\theta$, reaching $\theta$ only in the limit.
+\end{lemma}
+\begin{proof}
+The factor $1/(1+r\lvert v-\theta\rvert)\in(0,1)$ shrinks the gap $v-\theta$ without changing its sign.
+\end{proof}
 
-The charge update is therefore itself non-overshooting and bounded — it removes the explicit-Euler overshoot mechanism a proportional update would introduce and damps the load$\leftrightarrow$field feedback. The target $c\,s_i$ moves as routing shifts load, so freedom from \emph{closed-loop} ringing is not a consequence of Lemma 5.8 alone; §\ref{sec:congestion-stability} proves it.
+The charge update is therefore itself non-overshooting and bounded — it removes the explicit-Euler overshoot mechanism a proportional update would introduce and damps the load$\leftrightarrow$field feedback. The target $c\,s_i$ moves as routing shifts load, so freedom from \emph{closed-loop} ringing is not a consequence of Lemma~\ref{lem:nonovershoot} alone; §\ref{sec:congestion-stability} proves it.
 
 \subsection{Congestion stability}\label{sec:congestion-stability}
 
 Because both fields are exact (§\ref{sec:notation}, §\ref{sec:screened-balance}), the load-to-charge loop is an \emph{exact} discrete map: $\mu\leftarrow G(\mu)$ with $G(\mu)_i=\operatorname{reg}\!\big(\mu_i,\,c\,s_i(\mu),\,r\big)$, where $s(\mu)$ is the load carried under the current-split flow of the exact field $f(\mu)$. Its stability is therefore a theorem, not a simulation outcome. Write the loop Jacobian $J(\mu)=c\,Ds(\mu)$ and loop gain $\Gamma=\sup_\mu\|J(\mu)\|$.
 
-Two structural facts (Appendix C). First, the non-overshoot integrator has \textbf{no linear ringing mode}: because $\operatorname{reg}$ approaches its target \emph{algebraically}, the Jacobian of $G$ at the fixed point is exactly $I$ (marginal), so no small-signal mode can amplify — the proportional-control ringing an additive charge suffers is structurally absent. Second, stability is settled by the operator's own cubic potential.
+Two structural facts (Appendix~\ref{app:congestion}). First, the non-overshoot integrator has \textbf{no linear ringing mode}: because $\operatorname{reg}$ approaches its target \emph{algebraically}, the Jacobian of $G$ at the fixed point is exactly $I$ (marginal), so no small-signal mode can amplify — the proportional-control ringing an additive charge suffers is structurally absent. Second, stability is settled by the operator's own cubic potential.
 
-\textbf{Theorem 5.9 (congestion stability).} Let $\varepsilon(\mu)=\mu-c\,s(\mu)$ be the residual, $\Psi(\varepsilon)_i=\varepsilon_i|\varepsilon_i|$, and $V(\mu)=\tfrac13\sum_i|\varepsilon_i|^3$. Along the residual flow,
-
+\begin{theorem}[congestion stability]\label{thm:congestion}
+Let $\varepsilon(\mu)=\mu-c\,s(\mu)$ be the residual, $\Psi(\varepsilon)_i=\varepsilon_i|\varepsilon_i|$, and $V(\mu)=\tfrac13\sum_i|\varepsilon_i|^3$. Along the residual flow,
 \[
 \dot V=-r\,\Psi(\varepsilon)^{\!\top}\big(I-\operatorname{Sym}J(\mu)\big)\Psi(\varepsilon).
 \]
-
-If $\sup_\mu\lambda_{\max}\!\big(\operatorname{Sym}J(\mu)\big)<1$, then $V$ is a strict global Lyapunov function and the congestion loop converges to its unique fixed point with no oscillation. \emph{(Proof: Appendix C.)}
+If $\sup_\mu\lambda_{\max}\!\big(\operatorname{Sym}J(\mu)\big)<1$, then $V$ is a strict global Lyapunov function and the congestion loop converges to its unique fixed point with no oscillation.
+\end{theorem}
+\begin{proof}
+Appendix~\ref{app:congestion}.
+\end{proof}
 
 The condition is implied by loop gain $\Gamma<1$. It is \emph{not} the dissipative case $\operatorname{Sym}J\preceq0$: the self-term $\partial s_i/\partial\mu_i\ge0$ (§\ref{sec:congestion}) makes $\operatorname{Sym}J$ indefinite, so stability rests on the spectral bound, not on per-node negative feedback. It gives a \textbf{design rule}: hold the load coupling $c$ below $1/\lVert Ds\rVert$ — finite because $Ds$ is built from the bounded M-matrix field-sensitivity $\partial f/\partial\mu_i=-f_i(\mathcal{L}_g+Q)^{-1}e_i\le 0$ (§\ref{sec:notation}), though $Ds$ itself is not sign-definite — and the loop is provably ring-free for any glide rate $r$. The bound is conservative, and in the deployed loop it is met with room to spare: the up-gradient load \emph{saturates}, so the realized pointwise gain $\gamma_{\mathrm{loop}}(c)=c\,s'(\mu^\star)$ — a single-node multiplier, $\le\Gamma$ (Appendix C.3) — stays far below $1$ at every coupling and the loop is monotone-stable throughout (§\ref{sec:empirical}, Appendix C.5).
 
@@ -258,20 +317,30 @@ A relayed value is evidence about its source as of the moment it left. Informati
 
 Vitality decays toward $0$ by the integrator of §\ref{sec:congestion-stability} with target $0$ and rate $\alpha$; one tick of aging is $A(v)=\operatorname{reg}(v,0,\alpha)=v/(1+\alpha v)$.
 
-\textbf{Lemma 6.1 (Lorentzian decay).} $A^{k}(1)=1/(1+\alpha k)$. \emph{Proof.} $1/A(v)=1/v+\alpha$, so $1/A^{k}(1)=1+k\alpha$. $\;\blacksquare$
+\begin{lemma}[Lorentzian decay]\label{lem:lorentzian}
+$A^{k}(1)=1/(1+\alpha k)$.
+\end{lemma}
+\begin{proof}
+$1/A(v)=1/v+\alpha$, so $1/A^{k}(1)=1+k\alpha$.
+\end{proof}
 
 \subsection{Retardation is necessary}\label{sec:retardation}
 
 A value arriving after $\tau\ge 1$ ticks in flight is evidence from $\tau$ ticks ago and is aged by $\tau$ before use: $\tilde v=A^{\tau}(v)$. This is forced by causal consistency.
 
-\textbf{Theorem 6.2 (necessity of retardation).} Adopting a neighbour's vitality without aging it by transit admits a spurious fixed point: on any edge whose endpoints exchange vitality, $V\equiv v$ is fixed for any $v$, even after the source dies. \emph{Proof.} With the source gone, suppose each endpoint ages its own value and takes the max with the neighbour's last value: $V_a\leftarrow\max(A(V_a),V_b)$. If $V_a=V_b=v$ then $A(v)<v$, so $\max(A(v),v)=v$ — fixed at any $v$, in particular $1$: the un-aged exchange refreshes each endpoint above its own decay. Retardation replaces the neighbour's value with $A^{\tau}(V_b)$; at $V_a=V_b=v$ and minimal transit $\tau=1$, $A^{\tau}(v)=A(v)$ equals the self-aged value, so $\max(A(V_a),A^{\tau}(V_b))=A(v)<v$ (strictly smaller still for $\tau\ge 2$). The max no longer exceeds the self-aging, the spurious fixed point is gone, and the only fixed point is the source-pinned one. A relayed value spends at least one tick in flight, so $\tau\ge 1$ always holds. $\;\blacksquare$
+\begin{theorem}[necessity of retardation]\label{thm:retardation}
+Adopting a neighbour's vitality without aging it by transit admits a spurious fixed point: on any edge whose endpoints exchange vitality, $V\equiv v$ is fixed for any $v$, even after the source dies.
+\end{theorem}
+\begin{proof}
+With the source gone, suppose each endpoint ages its own value and takes the max with the neighbour's last value: $V_a\leftarrow\max(A(V_a),V_b)$. If $V_a=V_b=v$ then $A(v)<v$, so $\max(A(v),v)=v$ — fixed at any $v$, in particular $1$: the un-aged exchange refreshes each endpoint above its own decay. Retardation replaces the neighbour's value with $A^{\tau}(V_b)$; at $V_a=V_b=v$ and minimal transit $\tau=1$, $A^{\tau}(v)=A(v)$ equals the self-aged value, so $\max(A(V_a),A^{\tau}(V_b))=A(v)<v$ (strictly smaller still for $\tau\ge 2$). The max no longer exceeds the self-aging, the spurious fixed point is gone, and the only fixed point is the source-pinned one. A relayed value spends at least one tick in flight, so $\tau\ge 1$ always holds.
+\end{proof}
 
 Retardation is a thermodynamic arrow: a liveness eddy cannot sustain itself without the continuous energy of a live source pin.
 
 \begin{figure}[tbp]
 \centering
 \input{figures/fig-retardation}
-\caption{\textsc{[measured]} Retardation is load-bearing (Theorem 6.2). A source is killed at $t=0$ and a far observer's vitality toward it is tracked. Removing the transit-aging — the un-retarded recurrence ($\tau=0$) — locks $V$ at the spurious resurrection fixed point $V=1$: a dead source the protocol can never let die. The retarded protocol (median $+$ 10--90\% band over reps) ages monotonically through the action threshold $\varphi$ to zero — a clean severance.}
+\caption{\textsc{[measured]} Retardation is load-bearing (Theorem~\ref{thm:retardation}). A source is killed at $t=0$ and a far observer's vitality toward it is tracked. Removing the transit-aging — the un-retarded recurrence ($\tau=0$) — locks $V$ at the spurious resurrection fixed point $V=1$: a dead source the protocol can never let die. The retarded protocol (median $+$ 10--90\% band over reps) ages monotonically through the action threshold $\varphi$ to zero — a clean severance.}
 \label{fig:retardation}
 \end{figure}
 
@@ -279,38 +348,37 @@ Retardation is a thermodynamic arrow: a liveness eddy cannot sustain itself with
 
 The destination pins $V^d_d=1$. Each node ages its held value and adopts the retarded value of any port offering a higher one:
 
-\[
+\begin{equation}\label{eq:vitality-update}
 V^d_i\;\longleftarrow\;\max\!\Big(A(V^d_i),\;\max_{j\in N(i)}A^{\tau_{ij}}(V^d_j)\Big).
-\tag{6.1}
-\]
+\end{equation}
 
-\textbf{Theorem 6.3 (steady state).} For a continuously-live source, the converged vitality is
-
+\begin{theorem}[steady state]\label{thm:steadystate}
+For a continuously-live source, the converged vitality is
 \[
 \boxed{\;V^d_i=\frac{1}{1+\alpha\,T^d_i}\;}
 \]
-
-where $T^d_i$ is the least accumulated transit time from $d$ to $i$; with unit per-hop transit $T^d_i=\delta$ (hop-distance) and $V^d(\delta)=1/(1+\alpha\delta)$. \emph{Proof.} Substitute the \textbf{reciprocal vitality} $U^d_i=1/V^d_i$. Since $1/A^{\tau}(v)=1/v+\alpha\tau$ (Lemma 6.1), a $\max$ over $V$ is a $\min$ over $U$, and (6.1) becomes, away from the source,
-
-\[
+where $T^d_i$ is the least accumulated transit time from $d$ to $i$; with unit per-hop transit $T^d_i=\delta$ (hop-distance) and $V^d(\delta)=1/(1+\alpha\delta)$.
+\end{theorem}
+\begin{proof}
+Substitute the \textbf{reciprocal vitality} $U^d_i=1/V^d_i$. Since $1/A^{\tau}(v)=1/v+\alpha\tau$ (Lemma~\ref{lem:lorentzian}), a $\max$ over $V$ is a $\min$ over $U$, and \eqref{eq:vitality-update} becomes, away from the source,
+\begin{equation}\label{eq:eikonal}
 U^d_i\;\longleftarrow\;\min\!\Big(U^d_i+\alpha,\;\min_{j\in N(i)}\big(U^d_j+\alpha\,\tau_{ij}\big)\Big),\qquad U^d_d=1.
-\tag{6.2}
-\]
+\end{equation}
+This is the Bellman optimality equation for least-cost paths with strictly positive edge weights $\alpha\tau_{ij}$ ($\tau_{ij}\ge 1$) and source value $1$ — a \emph{discrete} Hamilton–Jacobi–Bellman (eikonal) fixed point solved \textbf{exactly} on the graph, not a discretization of a PDE. Its unique finite solution is $U^d_i=1+\alpha T^d_i$ (the self-term $U^d_i+\alpha$ is dominated wherever a live path exists), and the min-iteration converges to it from any initialisation under synchronous or bounded-delay asynchronous updates (the asynchronous shortest-path theorem: Bertsekas 1982; Tsitsiklis 1995). Inverting, $V^d_i=1/(1+\alpha T^d_i)$. The continuum eikonal $|\nabla U|=\alpha$ is the conditional continuum limit of this exact graph object, scoped in Appendix~\ref{app:fields}.
+\end{proof}
 
-This is the Bellman optimality equation for least-cost paths with strictly positive edge weights $\alpha\tau_{ij}$ ($\tau_{ij}\ge 1$) and source value $1$ — a \emph{discrete} Hamilton–Jacobi–Bellman (eikonal) fixed point solved \textbf{exactly} on the graph, not a discretization of a PDE. Its unique finite solution is $U^d_i=1+\alpha T^d_i$ (the self-term $U^d_i+\alpha$ is dominated wherever a live path exists), and the min-iteration converges to it from any initialisation under synchronous or bounded-delay asynchronous updates (the asynchronous shortest-path theorem: Bertsekas 1982; Tsitsiklis 1995). Inverting, $V^d_i=1/(1+\alpha T^d_i)$. The continuum eikonal $|\nabla U|=\alpha$ is the conditional continuum limit of this exact graph object, scoped in Appendix B. $\;\blacksquare$
-
-The exact object makes the light cone exact: $U^d_i-1=\alpha T^d_i$ is proper-time distance, so the iso-vitality level sets $\{V^d=\text{const}\}$ are the proper-time balls — the \emph{discrete} light cones — around $d$. A node whose freshest evidence is $T^d_i$ proper-time old reports exactly the confidence the decay law assigns to evidence of that age — no more.
+The exact object makes the light cone exact: $U^d_i-1=\alpha T^d_i$ is proper-time distance, so the iso-vitality level sets $\{V^d=\text{const}\}$ are the proper-time balls — the \emph{discrete} light cones — around $d$ (Fig.~\ref{fig:reciprocal}). A node whose freshest evidence is $T^d_i$ proper-time old reports exactly the confidence the decay law assigns to evidence of that age — no more.
 
 \begin{figure}[tbp]
 \centering
 \input{figures/fig-reciprocal}
-\caption{\textsc{[exact]} The reciprocal transform (Theorem 6.3). On a grid with a centre source the hop-distance $T$ is the exact min-plus shortest path. \emph{Top:} $V=1/(1+\alpha T)$ over the grid; its iso-$T$ level sets are the discrete light cones (proper-time balls), the red ring the $V=\varphi$ horizon. \emph{Bottom:} along a ray the Bellman metric $U=1+\alpha T$ climbs without bound (the count-to-infinity), while the data plane reads $V=1/U$, bounded in $[0,1]$ and fading through $\varphi$.}
+\caption{\textsc{[exact]} The reciprocal transform (Theorem~\ref{thm:steadystate}). On a grid with a centre source the hop-distance $T$ is the exact min-plus shortest path. \emph{Top:} $V=1/(1+\alpha T)$ over the grid; its iso-$T$ level sets are the discrete light cones (proper-time balls), the red ring the $V=\varphi$ horizon. \emph{Bottom:} along a ray the Bellman metric $U=1+\alpha T$ climbs without bound (the count-to-infinity), while the data plane reads $V=1/U$, bounded in $[0,1]$ and fading through $\varphi$.}
 \label{fig:reciprocal}
 \end{figure}
 
 \subsection{Death and garbage collection}\label{sec:death}
 
-When the source stops asserting life, every held value ages toward $0$ (Lemma 6.1) and, by Theorem 6.2, nothing lifts it back. In reciprocal terms the source-pin disappears, so the Bellman recursion (6.2) has no finite boundary value and $U^d_i$ increases without bound — the \emph{count-to-infinity} of distance-vector routing. But the data plane reads $V=1/U$, so divergence in $U$ is convergence to zero in $V$:
+When the source stops asserting life, every held value ages toward $0$ (Lemma~\ref{lem:lorentzian}) and, by Theorem~\ref{thm:retardation}, nothing lifts it back. In reciprocal terms the source-pin disappears, so the Bellman recursion \eqref{eq:eikonal} has no finite boundary value and $U^d_i$ increases without bound — the \emph{count-to-infinity} of distance-vector routing. But the data plane reads $V=1/U$, so divergence in $U$ is convergence to zero in $V$:
 
 \[
 U^d_i\to\infty \;\Longleftrightarrow\; V^d_i\to 0.
@@ -327,7 +395,7 @@ The exact pathology that forces sequence numbers and tombstones into RIP and BGP
 
 \subsection{The horizon}\label{sec:horizon}
 
-Acting only above a threshold $\varphi$ bounds the distance at which liveness can be asserted: $V^d(\delta)\ge\varphi\iff\delta\le R_V=(1/\varphi-1)/\alpha.$ $R_V$ is the radius within which the source's life is known to tolerance $\varphi$, set by the aging rate $\alpha$ — the rate at which stale evidence is discounted.
+Acting only above a threshold $\varphi$ bounds the distance at which liveness can be asserted: $V^d(\delta)\ge\varphi\iff\delta\le R_V=(1/\varphi-1)/\alpha.$ $R_V$ is the radius within which the source's life is known to tolerance $\varphi$, set by the aging rate $\alpha$ — the rate at which stale evidence is discounted (Fig.~\ref{fig:gridV}).
 
 \begin{figure}[tbp]
 \centering
@@ -388,7 +456,7 @@ an emission/aging cadence, not a route-expiry timer.}
 
 Adjacency is admitted by echo: neighbour $p$ contributes to the relaxation set
 $N^{\leftrightarrow}(i)$ when $i$ hears $p$ and $p$'s advertisement lists $i$ in $\mathrm{Hears}$. Staleness
-no longer cuts the field at a freshness window; it ages the link's conductance by (5.1a), so a silent
+no longer cuts the field at a freshness window; it ages the link's conductance by \eqref{eq:series-resistance}, so a silent
 neighbour drains continuously. A received vitality is aged before adoption,
 using one Tick of staleness per relay in the clock-free base protocol,
 \[
@@ -416,12 +484,16 @@ R_V=\frac{1/\varphi-1}{\alpha},
 \]
 set by the proper-time aging rate $\alpha$ and the consumer's threshold $\varphi$. Link aging uses the same proper-time rate: if a separate symbol $\beta$ is introduced for stale conductance, the foundation chooses $\beta=\alpha$. The relationship between $\alpha$ and $\kappa$ is therefore a tuning relation, not an identity of mechanisms.
 
-\textbf{Proposition 8.1 (bounded state).} If $\alpha$ is chosen so $R_V\asymp\lambda$, equivalently
-\[
+\begin{proposition}[bounded state]\label{prop:bounded}
+If $\alpha$ is chosen so $R_V\asymp\lambda$, equivalently
+\begin{equation}\label{eq:alpha-kappa}
 \alpha\asymp (1/\varphi-1)\sqrt{\kappa/D},
-\tag{8.1}
-\]
-each node maintains non-negligible state only for destinations within an $O(\lambda)$ ball, so total fabric state is $O\!\big(n\cdot\mathrm{Vol}(\lambda)\big)$. \emph{Sketch.} Beyond $\lambda$ the screened field falls below the operational floor and the destination is not worth carrying as routing state (§\ref{sec:screened-balance}); aligning $R_V$ with $\lambda$ ensures vitality has likewise decayed below the policy threshold there. Each node's working set is its reach ball, of volume $\mathrm{Vol}(\lambda)$; summing over $n$ nodes gives the bound. $\;\square$
+\end{equation}
+each node maintains non-negligible state only for destinations within an $O(\lambda)$ ball, so total fabric state is $O\!\big(n\cdot\mathrm{Vol}(\lambda)\big)$.
+\end{proposition}
+\begin{proof}[Sketch]
+Beyond $\lambda$ the screened field falls below the operational floor and the destination is not worth carrying as routing state (§\ref{sec:screened-balance}); aligning $R_V$ with $\lambda$ ensures vitality has likewise decayed below the policy threshold there. Each node's working set is its reach ball, of volume $\mathrm{Vol}(\lambda)$; summing over $n$ nodes gives the bound.
+\end{proof}
 
 Exact equality $R_V=\lambda$ is only one regime. With $D=1$, $\kappa=0.05$, and $\varphi=0.5$, it corresponds to $\alpha=\sqrt{\kappa/D}\approx0.224$. A proving-ground deployment may instead keep the same $\kappa$-scaled aging rate while lowering the policy threshold, e.g. $\varphi=0.2$, which gives $R_V\approx4\lambda$: evidence ages on the field's scale, while the data plane is willing to act farther into the low-confidence tail. This is a policy choice over continuous fields, not a new foundation term.
 
@@ -431,7 +503,7 @@ This is the payoff of unifying space and time: the protocol natively snuffs out 
 
 We validate the theory on the \emph{asynchronous} reference implementation: each node runs on its own cadence with no global round, barrier, or shared clock (§\ref{sec:operational}), and every measured figure is an ensemble of $R$ independent reps reported as a median with a 10--90\% inter-rep band. The exact-solve figures of §§\ref{sec:routing}--6 (\textsc{[exact]}) show what the operator \emph{defines}; the figures here (\textsc{[measured]}) show what the running protocol \emph{realizes}. This is a simulation study, not a deployment (§\ref{sec:discussion}); its purpose is to exercise each theorem on the live protocol.
 
-\textbf{Lifecycle and the $V(\delta)$ droop.} A far observer converges, the source is killed, and its vitality severs gracefully through $\varphi$ to zero (Fig.~\ref{fig:timeseries}). Along a line the steady live $V$ tracks the law $1/(1+\alpha\delta)$ (Theorem 6.3) but ages slightly \emph{faster} than unit-transit predicts (Fig.~\ref{fig:vdroop}): a route also dwells in the RIB between refreshes, spending extra proper time. The measured-below-theory gap is that dwell, not error — the protocol is honest about evidence it has held longer than one hop's transit.
+\textbf{Lifecycle and the $V(\delta)$ droop.} A far observer converges, the source is killed, and its vitality severs gracefully through $\varphi$ to zero (Fig.~\ref{fig:timeseries}). Along a line the steady live $V$ tracks the law $1/(1+\alpha\delta)$ (Theorem~\ref{thm:steadystate}) but ages slightly \emph{faster} than unit-transit predicts (Fig.~\ref{fig:vdroop}): a route also dwells in the RIB between refreshes, spending extra proper time. The measured-below-theory gap is that dwell, not error — the protocol is honest about evidence it has held longer than one hop's transit.
 
 \begin{figure}[tbp]
 \centering
@@ -443,7 +515,7 @@ We validate the theory on the \emph{asynchronous} reference implementation: each
 \begin{figure}[tbp]
 \centering
 \input{figures/fig-vdroop}
-\caption{\textsc{[measured]} The $V(\delta)$ droop along a line: measured live vitality vs.\ hop distance tracks the unit-transit law $1/(1+\alpha\delta)$ (Theorem 6.3); the shaded gap is the protocol ageing $V$ slightly faster because a route also dwells in the RIB between refreshes — extra proper time, not error.}
+\caption{\textsc{[measured]} The $V(\delta)$ droop along a line: measured live vitality vs.\ hop distance tracks the unit-transit law $1/(1+\alpha\delta)$ (Theorem~\ref{thm:steadystate}); the shaded gap is the protocol ageing $V$ slightly faster because a route also dwells in the RIB between refreshes — extra proper time, not error.}
 \label{fig:vdroop}
 \end{figure}
 
@@ -485,21 +557,21 @@ We validate the theory on the \emph{asynchronous} reference implementation: each
 \label{fig:linkaging}
 \end{figure}
 
-\textbf{Loop-dissipativity under churn.} Snapshotting the forwarding via-graph on a skewed, thrice-churned mesh and DFS-counting its directed cycles, transient via-cycles flicker as the field re-grows on stale advertisements — at most three at once, mean length $\approx 1.2$ hops — and every one dissipates to zero within a few rounds; none persists (Theorem 5.7, Fig.~\ref{fig:loops}). Kills collapse the field monotonically and raise no loop; only revives spark a transient.
+\textbf{Loop-dissipativity under churn.} Snapshotting the forwarding via-graph on a skewed, thrice-churned mesh and DFS-counting its directed cycles, transient via-cycles flicker as the field re-grows on stale advertisements — at most three at once, mean length $\approx 1.2$ hops — and every one dissipates to zero within a few rounds; none persists (Theorem~\ref{thm:nontrapping}, Fig.~\ref{fig:loops}). Kills collapse the field monotonically and raise no loop; only revives spark a transient.
 
 \begin{figure}[tbp]
 \centering
 \input{figures/fig-loops}
-\caption{\textsc{[measured]} Loop-dissipativity under async churn (Theorem 5.7). At each sample the forwarding via-graph is snapshotted and its directed cycles DFS-counted, read-only over a skewed, thrice-churned mesh. Transient via-cycles flicker as the field re-grows on stale advertisements (at most three at once, mean length $\approx 1.2$ hops) and dissipate to zero within a few rounds; none persists. Kills raise no loop — only revives spark a transient. Median $+$ envelope over $R=21$ reps.}
+\caption{\textsc{[measured]} Loop-dissipativity under async churn (Theorem~\ref{thm:nontrapping}). At each sample the forwarding via-graph is snapshotted and its directed cycles DFS-counted, read-only over a skewed, thrice-churned mesh. Transient via-cycles flicker as the field re-grows on stale advertisements (at most three at once, mean length $\approx 1.2$ hops) and dissipate to zero within a few rounds; none persists. Kills raise no loop — only revives spark a transient. Median $+$ envelope over $R=21$ reps.}
 \label{fig:loops}
 \end{figure}
 
-\textbf{Congestion damping.} On a barbell whose single bridge carries all cross-cluster current, the hub self-measures that load and glides its screening charge $\mu$ toward $c\,s$ with no injected stress (Fig.~\ref{fig:congestion}, top). The charge climbs monotonically to its equilibrium $\mu^\star=c\,s(\mu^\star)$ with no overshoot — the non-overshoot integrator's damped settle (Lemma 5.8). The loop stays monotone-stable at \emph{every} coupling we tested (to $c=32$): the up-gradient load saturates ($s\to s_\infty\!\approx\!4$), so the realized single-node loop gain $\gamma_{\mathrm{loop}}(c)=c\,s'(\mu^\star)$ measured at the operating point holds far below the $\gamma_{\mathrm{loop}}=1$ threshold and \emph{falls} as $c$ rises ($0.40$ at the lightest load, $0.06$ at $c=1$, $0.002$ at $c=32$); a naive fixed light-load slope would predict the gain crossing $1$, but saturation defeats it (Fig.~\ref{fig:congestion}, bottom). We observe no instability boundary — the energy bound $\lambda_{\max}(\operatorname{Sym}J)<1$ (Theorem 5.9) holds throughout, even though the per-node self-term $\partial s_i/\partial\mu_i\ge0$ is non-dissipative (§\ref{sec:congestion}, Appendix C.5).
+\textbf{Congestion damping.} On a barbell whose single bridge carries all cross-cluster current, the hub self-measures that load and glides its screening charge $\mu$ toward $c\,s$ with no injected stress (Fig.~\ref{fig:congestion}, top). The charge climbs monotonically to its equilibrium $\mu^\star=c\,s(\mu^\star)$ with no overshoot — the non-overshoot integrator's damped settle (Lemma~\ref{lem:nonovershoot}). The loop stays monotone-stable at \emph{every} coupling we tested (to $c=32$): the up-gradient load saturates ($s\to s_\infty\!\approx\!4$), so the realized single-node loop gain $\gamma_{\mathrm{loop}}(c)=c\,s'(\mu^\star)$ measured at the operating point holds far below the $\gamma_{\mathrm{loop}}=1$ threshold and \emph{falls} as $c$ rises ($0.40$ at the lightest load, $0.06$ at $c=1$, $0.002$ at $c=32$); a naive fixed light-load slope would predict the gain crossing $1$, but saturation defeats it (Fig.~\ref{fig:congestion}, bottom). We observe no instability boundary — the energy bound $\lambda_{\max}(\operatorname{Sym}J)<1$ (Theorem~\ref{thm:congestion}) holds throughout, even though the per-node self-term $\partial s_i/\partial\mu_i\ge0$ is non-dissipative (§\ref{sec:congestion}, Appendix C.5).
 
 \begin{figure}[tbp]
 \centering
 \input{figures/fig-congestion}
-\caption{\textsc{[measured]} The self-driven load$\leftrightarrow$charge loop (§\ref{sec:congestion}–§\ref{sec:congestion-stability}) on a barbell bridge. \emph{Top:} the hub's charge at three couplings, each normalised to its own equilibrium $\mu_\infty$; every curve climbs monotonically to $1$ with no overshoot — the non-overshoot integrator's damped settle (Lemma 5.8). \emph{Bottom:} the realized single-node loop gain $\gamma_{\mathrm{loop}}(c)=c\,s'(\mu^\star)$ at the operating point $\mu^\star=c\,s(\mu^\star)$, swept over coupling. Because the up-gradient load saturates ($s'\!\to\!0$ as $\mu$ grows), the realized gain (solid) stays far below the $\gamma_{\mathrm{loop}}=1$ instability threshold at every coupling and falls as $c$ rises — no instability boundary. The naive gain a fixed light-load slope predicts (dashed) shoots past $1$; saturation defeats it.}
+\caption{\textsc{[measured]} The self-driven load$\leftrightarrow$charge loop (§\ref{sec:congestion}–§\ref{sec:congestion-stability}) on a barbell bridge. \emph{Top:} the hub's charge at three couplings, each normalised to its own equilibrium $\mu_\infty$; every curve climbs monotonically to $1$ with no overshoot — the non-overshoot integrator's damped settle (Lemma~\ref{lem:nonovershoot}). \emph{Bottom:} the realized single-node loop gain $\gamma_{\mathrm{loop}}(c)=c\,s'(\mu^\star)$ at the operating point $\mu^\star=c\,s(\mu^\star)$, swept over coupling. Because the up-gradient load saturates ($s'\!\to\!0$ as $\mu$ grows), the realized gain (solid) stays far below the $\gamma_{\mathrm{loop}}=1$ instability threshold at every coupling and falls as $c$ rises — no instability boundary. The naive gain a fixed light-load slope predicts (dashed) shoots past $1$; saturation defeats it.}
 \label{fig:congestion}
 \end{figure}
 
@@ -507,48 +579,48 @@ Together these exercise every theorem of §§\ref{sec:routing}--6 on the running
 
 \section{Discussion and limitations}\label{sec:discussion}
 
-\textbf{Idealizations.} The clean $V(\delta)=1/(1+\alpha\delta)$ assumes unit per-hop transit; the general result is $V=1/(1+\alpha T)$ with $T$ the least accumulated transit time, which is what a deployment with heterogeneous link delay realizes. Closed-loop congestion stability is \emph{proven}, not empirical (Theorem 5.9): because the fields are exact, the load–charge loop is an exact map, globally ring-free whenever the loop gain stays below one. In the deployed loop that bound is met with room to spare — the up-gradient load saturates, so the realized gain stays far below one at every coupling and the loop is monotone-stable throughout (§\ref{sec:empirical}, Appendix C.5) — while a closed-form threshold for the multi-node map when the gain exceeds one remains open.
+\textbf{Idealizations.} The clean $V(\delta)=1/(1+\alpha\delta)$ assumes unit per-hop transit; the general result is $V=1/(1+\alpha T)$ with $T$ the least accumulated transit time, which is what a deployment with heterogeneous link delay realizes. Closed-loop congestion stability is \emph{proven}, not empirical (Theorem~\ref{thm:congestion}): because the fields are exact, the load–charge loop is an exact map, globally ring-free whenever the loop gain stays below one. In the deployed loop that bound is met with room to spare — the up-gradient load saturates, so the realized gain stays far below one at every coupling and the loop is monotone-stable throughout (§\ref{sec:empirical}, Appendix C.5) — while a closed-form threshold for the multi-node map when the gain exceeds one remains open.
 
 \textbf{Control-plane cost.} Liveness requires the source's assertion to be refreshed; a per-tick keepalive of the live working set is the simplest realization and is not silent at rest. It can be slowed to a lazy pulse at the cost of detection latency — a bandwidth/latency trade governed by $\alpha$ and the keepalive period.
 
-\textbf{Scope.} Proposition 8.1 bounds state to a reach ball; genuinely sub-$\mathrm{Vol}(\lambda)$ routing (internet-scale diameters) needs hierarchy or landmarks layered above the field, which we do not address. The asynchronous shortest-path convergence of (6.2) is invoked, not reproved. The relationship between the discrete operators and the continuum PDEs — formerly stated by analogy — is made precise in Appendix B: on the fabric both fields are \emph{exact} discrete objects (a linear M-matrix solve and a min-plus shortest path), and the elliptic screened-Poisson and eikonal equations govern them only under a monotone–consistent–stable manifold-discretization limit (Barles and Souganidis 1991; Calder and Ettehad 2022) whose sampling hypotheses a logical fabric does not satisfy — and against which a naive graph distance is metrication-biased. We therefore do \emph{not} claim the deployed network is governed by a PDE, only that its discrete fields are the exact combinatorial objects those PDEs idealize.
+\textbf{Scope.} Proposition~\ref{prop:bounded} bounds state to a reach ball; genuinely sub-$\mathrm{Vol}(\lambda)$ routing (internet-scale diameters) needs hierarchy or landmarks layered above the field, which we do not address. The asynchronous shortest-path convergence of \eqref{eq:eikonal} is invoked, not reproved. The relationship between the discrete operators and the continuum PDEs — formerly stated by analogy — is made precise in Appendix~\ref{app:fields}: on the fabric both fields are \emph{exact} discrete objects (a linear M-matrix solve and a min-plus shortest path), and the elliptic screened-Poisson and eikonal equations govern them only under a monotone–consistent–stable manifold-discretization limit (Barles and Souganidis 1991; Calder and Ettehad 2022) whose sampling hypotheses a logical fabric does not satisfy — and against which a naive graph distance is metrication-biased. We therefore do \emph{not} claim the deployed network is governed by a PDE, only that its discrete fields are the exact combinatorial objects those PDEs idealize.
 
 \textbf{Future work.} A kernel data plane carrying the two scalars as the only per-destination state — programming the forwarding table over netlink and forwarding in eBPF, exposed as a CNI plugin for container fabrics — with conductance and transit measured from the link rather than assumed uniform; hierarchical aggregation beyond the reach ball; and a closed-form threshold for the multi-node congestion loop beyond gain one — bracketed in Appendix C.5 between the conservative $\lambda_{\max}(\operatorname{Sym}J)<1$ and the saturated $\rho(c\,Ds)=1$, but still open.
 
 \section{Conclusion}\label{sec:conclusion}
 
-RING maps the heuristic machinery of distributed routing — metrics, timers, sequence numbers, tombstones, hold-downs — onto two \emph{exact} discrete fields solved by local asynchronous iteration. Direction is the exact solution of a screened M-matrix system whose maximum principle makes forwarding loop- and black-hole-free; confidence is the exact proper-time shortest path whose reciprocal turns count-to-infinity into graceful death. The two share one screening charge that also absorbs congestion, and the elliptic and eikonal equations a physicist would write for them are their continuum shadows (Appendix B), not the equations the fabric solves. What remains is a fabric bent by load and aged by proper time, carrying packets down the steepest gradient — no telecom algorithms left.
+RING maps the heuristic machinery of distributed routing — metrics, timers, sequence numbers, tombstones, hold-downs — onto two \emph{exact} discrete fields solved by local asynchronous iteration. Direction is the exact solution of a screened M-matrix system whose maximum principle makes forwarding loop- and black-hole-free; confidence is the exact proper-time shortest path whose reciprocal turns count-to-infinity into graceful death. The two share one screening charge that also absorbs congestion, and the elliptic and eikonal equations a physicist would write for them are their continuum shadows (Appendix~\ref{app:fields}), not the equations the fabric solves. What remains is a fabric bent by load and aged by proper time, carrying packets down the steepest gradient — no telecom algorithms left.
 
 \appendix
-\section{Supplementary detail}
+\section{Supplementary detail}\label{app:supplement}
 
-\textbf{A.1 The M-matrix properties (§\ref{sec:notation}).} $\mathcal{L}_g$ has non-positive off-diagonals $-g_{ij}$ and row sums zero; adding $Q\succ0$ yields strict row diagonal dominance $G_i+q_i>G_i=\sum_{j}|{-g_{ij}}|$. A symmetric, strictly diagonally dominant matrix with non-positive off-diagonals and positive diagonal is a Stieltjes (symmetric M-) matrix: positive-definite, with real positive eigenvalues and an entrywise non-negative inverse (Berman and Plemmons 1994; Varga 1962). Inverse-positivity gives $f^{d\star}\ge 0$ for the non-negative boundary data of (5.1), and strict positivity on $d$'s connected component.
+\textbf{A.1 The M-matrix properties (§\ref{sec:notation}).} $\mathcal{L}_g$ has non-positive off-diagonals $-g_{ij}$ and row sums zero; adding $Q\succ0$ yields strict row diagonal dominance $G_i+q_i>G_i=\sum_{j}|{-g_{ij}}|$. A symmetric, strictly diagonally dominant matrix with non-positive off-diagonals and positive diagonal is a Stieltjes (symmetric M-) matrix: positive-definite, with real positive eigenvalues and an entrywise non-negative inverse (Berman and Plemmons 1994; Varga 1962). Inverse-positivity gives $f^{d\star}\ge 0$ for the non-negative boundary data of \eqref{eq:relaxation}, and strict positivity on $d$'s connected component.
 
-\textbf{A.2 Domination of the self-term in (6.2).} The reciprocal update carries a self-term $U^d_i+\alpha$ (the node aging in the absence of fresher news). Since $U^d_i+\alpha>U^d_i\ge\min_j(U^d_j+\alpha\tau_{ij})$ whenever a live path exists, the self-term never attains the min at a live destination and the fixed point is the pure Bellman value $1+\alpha T^d_i$. With \emph{no} live source the self-term is the only term and drives $U\to\infty$ — the death dynamics of §\ref{sec:death}.
+\textbf{A.2 Domination of the self-term in \eqref{eq:eikonal}.} The reciprocal update carries a self-term $U^d_i+\alpha$ (the node aging in the absence of fresher news). Since $U^d_i+\alpha>U^d_i\ge\min_j(U^d_j+\alpha\tau_{ij})$ whenever a live path exists, the self-term never attains the min at a live destination and the fixed point is the pure Bellman value $1+\alpha T^d_i$. With \emph{no} live source the self-term is the only term and drives $U\to\infty$ — the death dynamics of §\ref{sec:death}.
 
-\textbf{A.3 Asynchronous shortest-path convergence of (6.2).} The min-plus operator $T(U)_i=\min_j(U^d_j+ \alpha\tau_{ij})$ is monotone and a (weighted) contraction toward the unique solution with non-negative weights and a fixed source value; the asynchronous convergence of such Bellman iterations under bounded communication and computation delay is classical (Bertsekas 1982; Bertsekas and Tsitsiklis 1989). The reciprocal $V=1/U$ inherits convergence by continuity away from $U=\infty$.
+\textbf{A.3 Asynchronous shortest-path convergence of \eqref{eq:eikonal}.} The min-plus operator $T(U)_i=\min_j(U^d_j+ \alpha\tau_{ij})$ is monotone and a (weighted) contraction toward the unique solution with non-negative weights and a fixed source value; the asynchronous convergence of such Bellman iterations under bounded communication and computation delay is classical (Bertsekas 1982; Bertsekas and Tsitsiklis 1989). The reciprocal $V=1/U$ inherits convergence by continuity away from $U=\infty$.
 
-\textbf{A.4 Loop-dissipativity round bound.} In Theorem 5.7, the convergence rate fixes the window: samples fall within $g_{\min}/2$ of equilibrium after $O\!\big(\log(C/g_{\min})/\log(1/\gamma)\big)$ rounds, with $C$ the initial discrepancy and $g_{\min}$ the least nonzero equilibrium gap; thereafter only level-set circulation (vanishing current) remains.
+\textbf{A.4 Loop-dissipativity round bound.} In Theorem~\ref{thm:nontrapping}, the convergence rate fixes the window: samples fall within $g_{\min}/2$ of equilibrium after $O\!\big(\log(C/g_{\min})/\log(1/\gamma)\big)$ rounds, with $C$ the initial discrepancy and $g_{\min}$ the least nonzero equilibrium gap; thereafter only level-set circulation (vanishing current) remains.
 
-\section{The exact discrete fields and their continuum limits}
+\section{The exact discrete fields and their continuum limits}\label{app:fields}
 
 The body names $f$ an "elliptic screened-Poisson potential" and $U=1/V$ an "eikonal" field. This appendix makes both names precise and, equally, bounds them. On the fabric \emph{both} fields are \textbf{exact} discrete objects, computed with no limit; the named partial differential equations are their \emph{shared continuum limits}, which a logical fabric is not built to take. We state the exact claims (B.1, B.2), the limit (B.3), and the scope (B.4).
 
-\textbf{B.1 The vitality field is an exact discrete eikonal.} Fix a live destination $d$ ($U_d=1$), transit times $\tau_{ij}\ge 1$, aging rate $\alpha>0$, weights $w_{ij}=\alpha\tau_{ij}>0$. The min-plus relation (6.2) is the Bellman optimality equation of the shortest-path problem with these weights; on the component that can reach $d$, the strictly positive weights forbid zero/negative cycles, so it has the \textbf{unique finite solution}
+\textbf{B.1 The vitality field is an exact discrete eikonal.} Fix a live destination $d$ ($U_d=1$), transit times $\tau_{ij}\ge 1$, aging rate $\alpha>0$, weights $w_{ij}=\alpha\tau_{ij}>0$. The min-plus relation \eqref{eq:eikonal} is the Bellman optimality equation of the shortest-path problem with these weights; on the component that can reach $d$, the strictly positive weights forbid zero/negative cycles, so it has the \textbf{unique finite solution}
 
 \[
 U^d_i = 1 + \alpha\, T^d_i,\qquad T^d_i=\min_{P:\,d\rightsquigarrow i}\ \sum_{(j,k)\in P}\tau_{jk},
 \]
 
-the least-accumulated-proper-time metric (Bellman 1958; Bertsekas 1982; Bertsekas and Tsitsiklis 1989). This is exact — a combinatorial optimum, no mesh and no limit. The operator $(\mathsf T U)_i=\min_{j\in N(i)}(U_j+\alpha\tau_{ij})$ is \textbf{monotone} (order-preserving), and its iteration is asynchronous Bellman–Ford; it converges by monotone dynamic programming, \emph{not} by a sup-norm contraction (that is the routing field's mechanism, §\ref{sec:convergence}). Over the $(\min,+)$ tropical (idempotent) semiring the operator is \textbf{linear} — the fixed point is the Kleene star $U=W^{*}\!\otimes b$, finite because $\tau_{ij}\ge 1$ excludes non-positive cycles (Litvinov 2005). The reciprocal $V=1/U$ is thus an \emph{exact} linearization of the nonlinear retarded-max update (6.1) into this tropically-linear problem; the Cole–Hopf transform (Hopf 1950; Cole 1951) is its continuum analogue, not its mechanism.
+the least-accumulated-proper-time metric (Bellman 1958; Bertsekas 1982; Bertsekas and Tsitsiklis 1989). This is exact — a combinatorial optimum, no mesh and no limit. The operator $(\mathsf T U)_i=\min_{j\in N(i)}(U_j+\alpha\tau_{ij})$ is \textbf{monotone} (order-preserving), and its iteration is asynchronous Bellman–Ford; it converges by monotone dynamic programming, \emph{not} by a sup-norm contraction (that is the routing field's mechanism, §\ref{sec:convergence}). Over the $(\min,+)$ tropical (idempotent) semiring the operator is \textbf{linear} — the fixed point is the Kleene star $U=W^{*}\!\otimes b$, finite because $\tau_{ij}\ge 1$ excludes non-positive cycles (Litvinov 2005). The reciprocal $V=1/U$ is thus an \emph{exact} linearization of the nonlinear retarded-max update \eqref{eq:vitality-update} into this tropically-linear problem; the Cole–Hopf transform (Hopf 1950; Cole 1951) is its continuum analogue, not its mechanism.
 
-\textbf{B.2 The routing field is an exact discrete screened operator.} The relation (5.1) is the row equation of the finite linear system $(\mathcal{L}_g+Q)f^d=0$ with $f^d_d=F_0$. Because $\mathcal{L}_g+Q$ is a symmetric M-matrix (§\ref{sec:notation}), it is invertible with a non-negative inverse, so $f^d$ is the \textbf{exact, unique} solution — again no mesh, no limit — and the reach $\lambda$, the maximum principle, and the contraction (Lemma 5.1) are exact statements about this discrete operator. The "screened-Poisson" / Helmholtz \emph{PDE} $-D\nabla^2 f+\kappa f=0$ is its continuum limit (B.3), not its definition.
+\textbf{B.2 The routing field is an exact discrete screened operator.} The relation \eqref{eq:relaxation} is the row equation of the finite linear system $(\mathcal{L}_g+Q)f^d=0$ with $f^d_d=F_0$. Because $\mathcal{L}_g+Q$ is a symmetric M-matrix (§\ref{sec:notation}), it is invertible with a non-negative inverse, so $f^d$ is the \textbf{exact, unique} solution — again no mesh, no limit — and the reach $\lambda$, the maximum principle, and the contraction (Lemma~\ref{lem:contraction}) are exact statements about this discrete operator. The "screened-Poisson" / Helmholtz \emph{PDE} $-D\nabla^2 f+\kappa f=0$ is its continuum limit (B.3), not its definition.
 
 \textbf{B.3 The continuum limits, and their hypotheses.} Both PDEs are recovered only when the graph discretizes an underlying length space or manifold, with edge data approximating the metric and a sampling/bandwidth scale driven to zero. The abstract bridge is Barles and Souganidis (1991): a \emph{monotone, consistent, stable} scheme converges locally uniformly to the unique \emph{viscosity solution} of the limiting equation (Crandall and Lions 1983), provided that equation enjoys a comparison principle. The min-plus update is monotone (B.1) and stable ($U=1+\alpha T$ is bounded on a finite live component); \textbf{consistency is the one hypothesis that is not free.} A naive graph shortest path is \emph{not} eikonal-consistent: it is a path-restricted, anisotropic over-estimate of the geodesic — the documented \textbf{metrication / grid-anisotropy bias} — which is exactly why fast marching solves a \emph{local} eikonal update instead of taking the graph $\min$ (Sethian 1996; Tsitsiklis 1995). Convergence to the geodesic eikonal therefore needs an eikonal-consistent solver or, for sampled data, random-geometric graphs with the right scaling, where it has been established with rates for graph Hamilton–Jacobi equations (Calder and Ettehad 2022; cf. Bernstein et al. 2000 for graph-geodesic convergence). The elliptic side is the parallel statement: the graph Laplacian $\mathcal{L}_g$ converges to the continuum Laplace–Beltrami operator under the analogous manifold-sampling hypotheses (García Trillos et al. 2020), so $(\mathcal{L}_g+Q)f=0$ converges to the screened-Poisson PDE in the same limit.
 
 \textbf{B.4 Scope.} A RING fabric is a \emph{logical} graph — its edges are links, not a sample of any fixed manifold; there is no $n\!\to\!\infty$ embedding and no bandwidth driven to zero. The hypotheses of B.3 are therefore not met by the deployed network, and neither PDE is the equation it solves. What it solves exactly are the two discrete operators of B.1–B.2. The continuum PDEs earn their keep here as \emph{clarifying idealizations} — they explain why iso-vitality sets behave like causal wavefronts and why the screened field decays with a reach length — and we invoke them strictly as limits, never as definitions. The protocol's guarantees rest only on the exact discrete statements.
 
-\section{Congestion-loop stability}
+\section{Congestion-loop stability}\label{app:congestion}
 
 \textbf{C.1 The exact map.} Because $f(\mu)$ (the M-matrix solve) and the induced load $s(\mu)$ are \emph{exact} functions of the charge field (§\ref{sec:notation}–§\ref{sec:routing}), the congestion loop is an exact discrete map $\mu\leftarrow G(\mu)$, $G(\mu)_i=\operatorname{reg}(\mu_i,\,c\,s_i(\mu),\,r)$. Stability is a property of this map, computed, not sampled. Let $\mu^\star$ be the fixed point ($\mu^\star_i=c\,s_i(\mu^\star)$), $e=\mu-\mu^\star$, $J=c\,Ds$, and $\varepsilon=\mu-c\,s(\mu)$ the residual (so $\varepsilon=(I-J)e$ to first order in $s$).
 
@@ -562,7 +634,7 @@ M(e)=\gamma_{\mathrm{loop}}+\frac{1-\gamma_{\mathrm{loop}}}{1+r\,|1-\gamma_{\mat
 
 $M(e)\to 1$ as $e\to0$ (the marginal mode of C.2, nonlinearly damped), and crucially $M(e)>0$ for every $e$: a positive-feedback self-term cannot \emph{ring}. For $\gamma_{\mathrm{loop}}<1$, $M(e)\in(\gamma_{\mathrm{loop}},1]$, so the error contracts monotonically from any displacement — globally stable; for $\gamma_{\mathrm{loop}}>1$, $M(e)\in(1,\gamma_{\mathrm{loop}})$, a monotone \emph{runaway} (the node's own screening pulling ever more flux), not oscillation. The deployed loop never enters that regime: saturation holds $\gamma_{\mathrm{loop}}=c\,s'(\mu^\star)\ll1$ at every coupling (§\ref{sec:empirical}). Classical \emph{ringing} ($M<-1$) requires the opposite sign $c\,s'<0$, which lives only in the mixed-sign off-diagonal of $Ds$; the cubic Lyapunov of C.4 — using $\operatorname{Sym}J$, sign-agnostic — covers it.
 
-\textbf{C.4 The cubic Lyapunov (proof of Theorem 5.9).} The multi-node result follows from the Lyapunov function \emph{matched to the operator}: $\operatorname{reg}$ is the time-$1$ flow of the cubic drag $\dot x=-r(x-\theta)|x-\theta|$, i.e. gradient descent on $\tfrac{r}{3}|x-\theta|^3$, so take $V(\mu)=\tfrac13\sum_i |\varepsilon_i|^3$. With $\Psi(\varepsilon)_i=\varepsilon_i|\varepsilon_i|$, the residual flow $\dot\mu=-r\,\Psi(\varepsilon)$ gives $\dot\varepsilon=(I-J)\dot\mu=-r(I-J)\Psi(\varepsilon)$, hence
+\textbf{C.4 The cubic Lyapunov (proof of Theorem~\ref{thm:congestion}).} The multi-node result follows from the Lyapunov function \emph{matched to the operator}: $\operatorname{reg}$ is the time-$1$ flow of the cubic drag $\dot x=-r(x-\theta)|x-\theta|$, i.e. gradient descent on $\tfrac{r}{3}|x-\theta|^3$, so take $V(\mu)=\tfrac13\sum_i |\varepsilon_i|^3$. With $\Psi(\varepsilon)_i=\varepsilon_i|\varepsilon_i|$, the residual flow $\dot\mu=-r\,\Psi(\varepsilon)$ gives $\dot\varepsilon=(I-J)\dot\mu=-r(I-J)\Psi(\varepsilon)$, hence
 
 \[
 \dot V=\sum_i\Psi(\varepsilon_i)\,\dot\varepsilon_i=\Psi(\varepsilon)^{\!\top}\dot\varepsilon
@@ -580,7 +652,7 @@ the last step because a quadratic form sees only the symmetric part. If $\lambda
 
 At the fixed point $A\to0$, so the Jacobian is exactly $I$ (C.2): the loop is \emph{marginal} at small signal for every gain, and any instability is finite-amplitude. In the saturated limit $A\to I$ the map is $\varepsilon^+=J\varepsilon$, so large-displacement behaviour is governed by the spectral radius $\rho(J)=\rho(c\,Ds)$; we measure $\rho(c\,Ds)<1$ at every operating point, so there is no large-amplitude blow-up either.
 
-One might hope for a sharp \emph{Perron} threshold, but $Ds$ is \emph{not} sign-definite. Its diagonal is $\partial s_i/\partial\mu_i\ge0$ — structurally, because the symmetric M-matrix resolvent $(\mathcal{L}_g+Q)^{-1}$ carries its row maximum on the diagonal, so screening a node sinks its own potential and \emph{widens} the up-gradient gap it measures — while its off-diagonal is genuinely mixed-sign (positive toward the source, negative toward the destination). Hence $-c\,Ds$ has no nonnegative dominant eigenvector and no Perron root; the binding quantity is the symmetric spectrum $\lambda_{\max}(\operatorname{Sym}J)$ of Theorem 5.9, which differs from $\rho(J)$ and is the energy-Lyapunov threshold. What keeps the deployed loop inside it is not a sign condition but \textbf{saturation}: the operating point $\mu^\star=c\,s(\mu^\star)$ sits where $s'$ has collapsed (the load tends to $s_\infty$), so the realized gain $c\,s'(\mu^\star)$ stays far below $1$ at every coupling and falls as $c$ grows (§\ref{sec:empirical}). The exact global threshold of the multi-node map — bracketed below by $\lambda_{\max}(\operatorname{Sym}J)<1$ and above by the saturated $\rho(J)=1$, and itself glide-rate dependent — remains open; we claim no closed form. $\;\blacksquare$
+One might hope for a sharp \emph{Perron} threshold, but $Ds$ is \emph{not} sign-definite. Its diagonal is $\partial s_i/\partial\mu_i\ge0$ — structurally, because the symmetric M-matrix resolvent $(\mathcal{L}_g+Q)^{-1}$ carries its row maximum on the diagonal, so screening a node sinks its own potential and \emph{widens} the up-gradient gap it measures — while its off-diagonal is genuinely mixed-sign (positive toward the source, negative toward the destination). Hence $-c\,Ds$ has no nonnegative dominant eigenvector and no Perron root; the binding quantity is the symmetric spectrum $\lambda_{\max}(\operatorname{Sym}J)$ of Theorem~\ref{thm:congestion}, which differs from $\rho(J)$ and is the energy-Lyapunov threshold. What keeps the deployed loop inside it is not a sign condition but \textbf{saturation}: the operating point $\mu^\star=c\,s(\mu^\star)$ sits where $s'$ has collapsed (the load tends to $s_\infty$), so the realized gain $c\,s'(\mu^\star)$ stays far below $1$ at every coupling and falls as $c$ grows (§\ref{sec:empirical}). The exact global threshold of the multi-node map — bracketed below by $\lambda_{\max}(\operatorname{Sym}J)<1$ and above by the saturated $\rho(J)=1$, and itself glide-rate dependent — remains open; we claim no closed form. $\;\blacksquare$
 
 \section*{References}
 \addcontentsline{toc}{section}{References}

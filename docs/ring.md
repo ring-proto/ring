@@ -284,7 +284,7 @@ conductance by adding staleness as series resistance,
 $$
 \boxed{\;\frac{1}{g^{\mathrm{eff}}_{ij}(k)}=\frac{1}{g_{ij}}+\alpha k\;},\qquad
 g^{\mathrm{eff}}_{ij}(k)=\frac{g_{ij}}{1+\alpha k g_{ij}}.
-\tag{5.1a}
+\tag{5.2}
 $$
 This is the same reciprocal proper-time law as vitality: vitality ages in $U=1/V$ by
 $U\leftarrow U+\alpha k$, while link evidence ages in $R=1/g$ by $R\leftarrow R+\alpha k$. If one writes a
@@ -294,12 +294,12 @@ separate link-aging rate $\beta$, the one-operator statement is $\beta=\alpha$.
 $g^{\mathrm{eff}}_{ij}(k)$ is monotone decreasing in $k$, and $g^{\mathrm{eff}}_{ij}(k)\to0$ as
 $k\to\infty$. For every finite age vector, replacing $g$ by $g^{\mathrm{eff}}$ leaves the routing operator a
 screened M-matrix with $q_i\ge\kappa>0$.
-*Proof.* The first claims are immediate from (5.1a). Nonnegative conductances preserve the Laplacian sign
+*Proof.* The first claims are immediate from (5.2). Nonnegative conductances preserve the Laplacian sign
 pattern and diagonal dominance, and $Q\succeq\kappa I$ remains unchanged; hence
 $\mathcal L_{g^{\mathrm{eff}}}+Q$ is the same class of symmetric M-matrix as before. $\;\blacksquare$
 
 **Theorem (dead-relay drain).** A dead relay's frozen potential cannot remain a permanent routing pin under
-(5.1a).
+(5.2).
 *Proof.* Potentials are bounded by the source pin, $0\le p^d_j\le F_0$. The stale contribution of $j$ to
 $i$'s relaxation is therefore bounded by
 $$
@@ -331,7 +331,7 @@ A node forwards along the discrete current $J_{ij}=g_{ij}(f^d_j-f^d_i)$. The act
 strictly-uphill neighbours, split in proportion to the current:
 $$
 N^{\uparrow}(i)=\{\,j\in N(i):f^d_j>f^d_i\,\},\qquad w_{ij}=g_{ij}(f^d_j-f^d_i),\qquad \text{via}=\arg\max_j w_{ij}.
-\tag{5.2}
+\tag{5.3}
 $$
 Forwarding to all uphill neighbours is a current-proportional spread (a generalisation of equal-cost
 multipath); the dominant edge is the maximum-current hop. Conductance biases the split toward
@@ -572,7 +572,7 @@ There is no global round, no barrier, and no shared clock.
 
 Adjacency is admitted by echo: neighbour $p$ contributes to the relaxation set $N^{\leftrightarrow}(i)$
 when $i$ hears $p$ and $p$'s advertisement lists $i$ in $\mathrm{Hears}$. Staleness does not cut the field at
-a freshness window; it ages the link's conductance by (5.1a), so a silent neighbour drains continuously.
+a freshness window; it ages the link's conductance by (5.2), so a silent neighbour drains continuously.
 A received vitality is aged before adoption, using one Tick of staleness per relay
 in the clock-free base protocol,
 $$
@@ -624,7 +624,7 @@ among $\kappa$, $\alpha$, and $\varphi$. (Sub-$\mathrm{Vol}(\lambda)$ state woul
 ## 9. Empirical validation
 
 We validate the theory on the *asynchronous* reference implementation: each node runs on its own cadence
-with no global round, barrier, or shared clock (§7.1), and every measured result is an ensemble of $R$
+with no global round, barrier, or shared clock (§7.1), and every measured figure is an ensemble of $R$
 independent reps reported as a median with a 10–90% inter-rep band. The exact-solve figures of §§5–6
 (**[exact]**) show what the operator *defines*; the figures here (**[measured]**) show what the running
 protocol *realizes*. This is a simulation study, not a deployment (§10); its purpose is to exercise each
