@@ -6,7 +6,7 @@
 \usepackage{array,tabularx}
 \usepackage[hidelinks]{hyperref}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc,fit,backgrounds}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 \usepgfplotslibrary{fillbetween}
@@ -355,26 +355,7 @@ There is no global round, no barrier, and no shared clock.
 
 \begin{figure}[t]
 \centering
-\begin{tikzpicture}[
-  >=Stealth,
-  node distance=8mm and 11mm,
-  box/.style={draw, rounded corners, align=center, minimum width=28mm, minimum height=8mm},
-  arrow/.style={->, thick}
-]
-\node[box] (idle) {idle};
-\node[box, right=of idle] (ingest) {ingest\\advertisement};
-\node[box, below=of idle] (age) {age held\\vitality};
-\node[box, right=of age] (relax) {relax routing\\field};
-\node[box, right=of relax] (via) {recompute\\via};
-\node[box, right=of via] (emit) {emit\\advertisement};
-\draw[arrow] (idle) -- node[above, font=\small] {message arrives} (ingest);
-\draw[arrow] (ingest) to[bend left=18] (idle);
-\draw[arrow] (idle) -- node[left, font=\small] {local Tick} (age);
-\draw[arrow] (age) -- (relax);
-\draw[arrow] (relax) -- (via);
-\draw[arrow] (via) -- (emit);
-\draw[arrow] (emit.north) |- (idle.east);
-\end{tikzpicture}
+\input{figures/fig-nodecycle}
 \caption{RING node cycle.  Message arrival and local cadence are independent event sources; the Tick is
 an emission/aging cadence, not a route-expiry timer.}
 \end{figure}
@@ -396,25 +377,7 @@ direction is known, and the vitality threshold says whether that direction is vo
 
 \begin{figure}[t]
 \centering
-\begin{tikzpicture}[
-  >=Stealth,
-  node distance=9mm and 11mm,
-  box/.style={draw, rounded corners, align=center, minimum width=30mm, minimum height=8mm},
-  decision/.style={draw, diamond, aspect=2.2, align=center, inner sep=1pt, minimum width=30mm},
-  arrow/.style={->, thick}
-]
-\node[box] (pkt) {packet for $d$};
-\node[decision, right=of pkt] (known) {field\\known?};
-\node[box, above right=of known] (drop) {unreachable:\\drop or hold};
-\node[decision, below right=of known] (vital) {$V^d_i\ge\varphi$?};
-\node[box, above right=of vital] (fwd) {forward via\\dominant uphill hop};
-\node[box, below right=of vital] (policy) {not vouched for:\\consumer decides};
-\draw[arrow] (pkt) -- (known);
-\draw[arrow] (known) -- node[above left, font=\small] {no} (drop);
-\draw[arrow] (known) -- node[below left, font=\small] {yes} (vital);
-\draw[arrow] (vital) -- node[above left, font=\small] {yes} (fwd);
-\draw[arrow] (vital) -- node[below left, font=\small] {no} (policy);
-\end{tikzpicture}
+\input{figures/fig-forwarding}
 \caption{Forwarding decision.  Low vitality severs confidence, not direction; the caller chooses what to
 do with a known but no-longer-vouched-for destination.}
 \end{figure}

@@ -1,0 +1,53 @@
+% Forwarding decision (§7.1, hand-drawn — no data). The data plane reads the RIB as a two-level policy:
+% field-known? then V>=phi?. Terminals are colour-coded by valence — forward (teal, positive),
+% unreachable/drop (red), not-vouched/policy (amber); decision diamonds get a light blue fill; the
+% yes/no edge labels are small rounded chips so they ride the edge mid-span, never touching a box.
+% Baseline tikz libraries only (arrows.meta, positioning, shapes.geometric).
+\begin{tikzpicture}[
+  >={Stealth[length=2.4mm]},
+  font=\small,
+  node distance=10mm and 16mm,
+  every node/.style={align=center},
+  startnode/.style={
+    rounded corners=2pt, draw=blue!70!black, fill=blue!8,
+    text=black, inner sep=4pt, minimum height=8mm, line width=0.7pt},
+  decision/.style={
+    diamond, aspect=1.7, draw=blue!70!black, fill=blue!8,
+    text=black, inner sep=1pt, line width=0.7pt},
+  term/.style={
+    rounded corners=2pt, text=black, inner sep=4pt,
+    minimum height=8mm, line width=0.8pt},
+  fwd/.style={term, draw=teal!70!black, fill=teal!8},
+  drop/.style={term, draw=red!75!black, fill=red!8},
+  policy/.style={term, draw=orange!85!black, fill=orange!10},
+  yesedge/.style={->, draw=teal!70!black, line width=0.8pt},
+  noedge/.style={->, draw=red!60!black, line width=0.8pt},
+  plainedge/.style={->, draw=black!55, line width=0.8pt},
+  yeschip/.style={
+    fill=teal!8, draw=teal!70!black, text=teal!40!black,
+    rounded corners=2pt, inner sep=2pt, font=\scriptsize\bfseries},
+  nochip/.style={
+    fill=red!8, draw=red!60!black, text=red!55!black,
+    rounded corners=2pt, inner sep=2pt, font=\scriptsize\bfseries},
+]
+% --- nodes, left to right ---
+\node[startnode] (pkt) {packet for $d$};
+\node[decision, right=of pkt] (known) {field\\known?};
+
+% known? --no--> drop (down), --yes--> vital (right)
+\node[drop, below=14mm of known] (drop) {unreachable:\\drop or hold};
+\node[decision, right=22mm of known] (vital) {$V^d_i\ge\varphi$?};
+
+% vital? --yes--> fwd (right), --no--> policy (down)
+\node[fwd, right=of vital] (fwd) {forward via\\dominant uphill hop};
+\node[policy, below=14mm of vital] (policy) {not vouched for:\\consumer decides};
+
+% --- edges ---
+\draw[plainedge] (pkt) -- (known);
+
+\draw[noedge] (known) -- node[nochip, pos=0.42] {no} (drop);
+\draw[yesedge] (known) -- node[yeschip, pos=0.5] {yes} (vital);
+
+\draw[yesedge] (vital) -- node[yeschip, pos=0.5] {yes} (fwd);
+\draw[noedge] (vital) -- node[nochip, pos=0.42] {no} (policy);
+\end{tikzpicture}

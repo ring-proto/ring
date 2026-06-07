@@ -1,0 +1,60 @@
+% RING node cycle (§7.1, hand-drawn — no data). A node sits in 'idle'; two INDEPENDENT event sources
+% wake it, drawn as two lanes so the independence is explicit: reception ("on message", orange) is the
+% SHORT loop idle->ingest->idle that only records the advertisement (no relax, no emit); emission
+% ("on Tick", blue) is the LONG pipeline idle->age->relax->via->emit->idle. idle is the neutral shared
+% hub, in neither band. Needs tikz libraries: calc, fit, backgrounds (beyond baseline arrows.meta,
+% positioning, shapes.geometric).
+\begin{tikzpicture}[
+  >={Stealth[length=5pt]},
+  font=\small,
+  node distance=10mm and 8mm,
+  box/.style={rounded corners=2pt, draw, align=center, inner sep=3pt,
+              minimum height=8mm, minimum width=14mm, text=black, fill=white},
+  hub/.style={box, draw=black!55, fill=black!4, minimum width=11mm},
+  recvbox/.style={box, draw=orange!85!black, fill=orange!10},
+  emitbox/.style={box, draw=blue!70!black, fill=blue!8},
+  recvedge/.style={draw=orange!85!black, ->, thick},
+  emitedge/.style={draw=blue!70!black, ->, thick},
+  elab/.style={font=\footnotesize, text=black, inner sep=1.5pt, fill=white},
+  lanecap/.style={font=\footnotesize\itshape, text=black!55},
+]
+% --- hub (neutral, sits between the two lanes, in neither band) ---
+\node[hub] (idle) {idle};
+
+% --- top lane: reception ---
+\node[recvbox, above right=6mm and 28mm of idle] (ingest) {ingest\\advertisement};
+
+% --- bottom lane: emission ---
+\node[emitbox, below right=6mm and 14mm of idle] (age) {age held\\vitality};
+\node[emitbox, right=of age] (relax) {relax routing\\field};
+\node[emitbox, right=of relax] (via) {recompute\\via};
+\node[emitbox, right=of via] (emit) {emit\\advertisement};
+
+% --- lane background bands (behind everything; bands DO NOT cover idle) ---
+\begin{scope}[on background layer]
+  \node[fill=orange!10, rounded corners=3pt, fit=(ingest),
+        inner xsep=20mm, inner ysep=3.5mm] (recvband) {};
+  \node[fill=blue!8, rounded corners=3pt, fit=(age)(emit),
+        inner xsep=4mm, inner ysep=4mm] (emitband) {};
+\end{scope}
+
+% --- reception edges: short loop off idle (orange), the two arrows kept well apart ---
+\draw[recvedge] (idle.north) to[out=78,in=182]
+  node[elab, pos=0.6] {message arrives} (ingest.west);
+\draw[recvedge] (ingest.south) to[out=-90,in=48,looseness=0.95] (idle.east);
+
+% --- emission edges: long pipeline (blue) ---
+\draw[emitedge] (idle.south) to[out=-82,in=180]
+  node[elab, pos=0.62] {local Tick} (age.west);
+\draw[emitedge] (age) -- (relax);
+\draw[emitedge] (relax) -- (via);
+\draw[emitedge] (via) -- (emit);
+% return: drop into clear space below the band, run left, rise into idle.south
+\coordinate (rdown) at ($(emit.south)+(0,-7mm)$);
+\coordinate (rleft) at (idle.south |- rdown);
+\draw[emitedge] (emit.south) -- (rdown) -- (rleft) -- (idle.south);
+
+% --- lane captions: above each band's left edge, in clear space ---
+\node[lanecap, anchor=south west] at ([yshift=1pt]recvband.north west) {on message};
+\node[lanecap, anchor=south west] at ([xshift=12mm,yshift=1pt]emitband.north west) {on Tick};
+\end{tikzpicture}
